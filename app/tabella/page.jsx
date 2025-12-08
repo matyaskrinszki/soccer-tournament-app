@@ -1,0 +1,238 @@
+'use client';
+
+import './page.css';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import Header from '../components/Header';
+import AuthModal from '../components/AuthModal';
+
+export default function StandingsPage() {
+    const [isLoggedIn, setIsLoggedIn] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        const token = localStorage.getItem('token');
+        const email = localStorage.getItem('email');
+        return Boolean(token && email);
+    });
+    const [userEmail, setUserEmail] = useState(() => {
+        if (typeof window === 'undefined') return '';
+        return localStorage.getItem('email') ?? '';
+    });
+    const [showAuthModal, setShowAuthModal] = useState(false);
+    const [authMode, setAuthMode] = useState('login');
+    const [successMessage, setSuccessMessage] = useState('');
+
+    const handleOpenAuth = (mode) => {
+        setAuthMode(mode);
+        setShowAuthModal(true);
+    };
+
+    const handleCloseAuth = () => {
+        setShowAuthModal(false);
+    };
+
+    const handleAuthSuccess = (email, _token, info) => {
+        if (info) {
+            // Signup successful - show verification message
+            setSuccessMessage(info.message);
+            setShowAuthModal(false);
+            setTimeout(() => setSuccessMessage(''), 5000);
+            return;
+        }
+        // Login successful
+        setIsLoggedIn(true);
+        setUserEmail(email);
+        setShowAuthModal(false);
+    };
+
+    const [leagues, setLeagues] = useState([
+        {
+            id: '4',
+            name: 'Bundesliga',
+            country: 'Németország',
+            teams: [
+                { name: 'Bayern Munich', played: 10, wins: 8, draws: 2, losses: 0, points: 26 },
+                { name: 'Dortmund', played: 10, wins: 7, draws: 1, losses: 2, points: 22 },
+                { name: 'Leverkusen', played: 10, wins: 6, draws: 2, losses: 2, points: 20 },
+                { name: 'RB Leipzig', played: 10, wins: 5, draws: 2, losses: 3, points: 17 },
+                { name: 'Stuttgart', played: 10, wins: 4, draws: 1, losses: 5, points: 13 },
+                { name: 'Hoffenheim', played: 10, wins: 3, draws: 2, losses: 5, points: 11 },
+            ]
+        },
+        {
+            id: '1',
+            name: 'Premier League',
+            country: 'Anglia',
+            teams: [
+                { name: 'Manchester City', played: 10, wins: 8, draws: 1, losses: 1, points: 25 },
+                { name: 'Arsenal', played: 10, wins: 7, draws: 2, losses: 1, points: 23 },
+                { name: 'Liverpool', played: 10, wins: 7, draws: 1, losses: 2, points: 22 },
+                { name: 'Chelsea', played: 10, wins: 6, draws: 2, losses: 2, points: 20 },
+                { name: 'Manchester United', played: 10, wins: 5, draws: 2, losses: 3, points: 17 },
+                { name: 'Tottenham', played: 10, wins: 4, draws: 3, losses: 3, points: 15 },
+            ]
+        },
+        {
+            id: '2',
+            name: 'La Liga',
+            country: 'Spanyolország',
+            teams: [
+                { name: 'Real Madrid', played: 10, wins: 9, draws: 0, losses: 1, points: 27 },
+                { name: 'Barcelona', played: 10, wins: 7, draws: 2, losses: 1, points: 23 },
+                { name: 'Atlético Madrid', played: 10, wins: 6, draws: 3, losses: 1, points: 21 },
+                { name: 'Sevilla', played: 10, wins: 5, draws: 2, losses: 3, points: 17 },
+                { name: 'Real Sociedad', played: 10, wins: 4, draws: 2, losses: 4, points: 14 },
+                { name: 'Villarreal', played: 10, wins: 3, draws: 3, losses: 4, points: 12 },
+            ]
+        },
+        {
+            id: '3',
+            name: 'Série A',
+            country: 'Olaszország',
+            teams: [
+                { name: 'Napoli', played: 10, wins: 8, draws: 1, losses: 1, points: 25 },
+                { name: 'Inter Milan', played: 10, wins: 7, draws: 2, losses: 1, points: 23 },
+                { name: 'AC Milan', played: 10, wins: 6, draws: 3, losses: 1, points: 21 },
+                { name: 'Juventus', played: 10, wins: 5, draws: 2, losses: 3, points: 17 },
+                { name: 'Lazio', played: 10, wins: 4, draws: 2, losses: 4, points: 14 },
+                { name: 'Atalanta', played: 10, wins: 3, draws: 3, losses: 4, points: 12 },
+            ]
+        },
+        {
+            id: '5',
+            name: 'Ligue 1',
+            country: 'Franciaország',
+            teams: [
+                { name: 'Paris Saint-Germain', played: 10, wins: 8, draws: 1, losses: 1, points: 25 },
+                { name: 'Marseille', played: 10, wins: 6, draws: 3, losses: 1, points: 21 },
+                { name: 'Monaco', played: 10, wins: 6, draws: 2, losses: 2, points: 20 },
+                { name: 'Lyon', played: 10, wins: 5, draws: 2, losses: 3, points: 17 },
+                { name: 'Rennes', played: 10, wins: 4, draws: 1, losses: 5, points: 13 },
+                { name: 'Nice', played: 10, wins: 3, draws: 2, losses: 5, points: 11 },
+            ]
+        }
+    ]);
+
+    const [selectedLeagueId, setSelectedLeagueId] = useState(null);
+    const [showLeagueDropdown, setShowLeagueDropdown] = useState(false);
+
+    return (
+        <div className="standings-page">
+            <Header
+                isLoggedIn={isLoggedIn}
+                userEmail={userEmail}
+                setIsLoggedIn={setIsLoggedIn}
+                onOpenAuth={handleOpenAuth}
+            />
+
+            <div className="standings-app">
+                <header className="standings-header">
+                    <div>
+                        <p className="eyebrow">Tabella</p>
+                        <h1>Ligák és csapatok</h1>
+                        <p className="subhead">Válassz egy ligát a tabella megtekintéséhez.</p>
+                    </div>
+                </header>
+
+                <div className="league-selector-container">
+                    <div className="league-selector">
+                        <button
+                            className="league-selector-btn"
+                            onClick={() => setShowLeagueDropdown(!showLeagueDropdown)}
+                        >
+                            {selectedLeagueId ? leagues.find(l => l.id === selectedLeagueId)?.name : 'Válassz ligát'}
+                            <span className="dropdown-arrow">{showLeagueDropdown ? '▲' : '▼'}</span>
+                        </button>
+
+                        {showLeagueDropdown && (
+                            <div className="league-dropdown">
+                                {leagues.map((league) => (
+                                    <div
+                                        key={league.id}
+                                        className="league-option"
+                                        onClick={() => {
+                                            setSelectedLeagueId(league.id);
+                                            setShowLeagueDropdown(false);
+                                        }}
+                                    >
+                                        <p className="league-option-country">{league.country}</p>
+                                        <p className="league-option-name">{league.name}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {selectedLeagueId && leagues.find(l => l.id === selectedLeagueId) && (
+                    <section className="league-standings">
+                        {(() => {
+                            const league = leagues.find(l => l.id === selectedLeagueId);
+                            return (
+                                <>
+                                    <div className="league-header">
+                                        <p className="eyebrow">{league.country}</p>
+                                        <h2>{league.name}</h2>
+                                        <p className="team-count-text">{league.teams.length} csapat</p>
+                                    </div>
+
+                                    <table className="standings-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Csapat</th>
+                                                <th title="Mérkőzések száma">Ms</th>
+                                                <th title="Győzelmek">Gy</th>
+                                                <th title="Döntetlenek">D</th>
+                                                <th title="Vereségek">V</th>
+                                                <th>Pont</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {league.teams.map((team, idx) => (
+                                                <tr key={team.name}>
+                                                    <td>
+                                                        <span className="position">{idx + 1}</span>
+                                                        <span className="team-name">{team.name}</span>
+                                                    </td>
+                                                    <td>{team.played}</td>
+                                                    <td>{team.wins}</td>
+                                                    <td>{team.draws}</td>
+                                                    <td>{team.losses}</td>
+                                                    <td className="points">{team.points}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </>
+                            );
+                        })()}
+                    </section>
+                )}
+            </div>
+
+            {showAuthModal && (
+                <AuthModal
+                    mode={authMode}
+                    onClose={handleCloseAuth}
+                    onSuccess={handleAuthSuccess}
+                />
+            )}
+
+            {successMessage && (
+                <div style={{
+                    position: 'fixed',
+                    top: '20px',
+                    right: '20px',
+                    background: '#d4edda',
+                    color: '#155724',
+                    padding: '15px 20px',
+                    borderRadius: '5px',
+                    border: '1px solid #c3e6cb',
+                    maxWidth: '400px',
+                    zIndex: 1000
+                }}>
+                    {successMessage}
+                </div>
+            )}
+        </div>
+    );
+}
