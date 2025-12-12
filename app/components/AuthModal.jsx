@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { validateAuth } from '../../lib/validation';
 import './AuthModal.css';
 
 export default function AuthModal({ mode, onClose, onSuccess }) {
@@ -16,40 +17,25 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
         setLoading(true);
 
         try {
-            // Validation
-            if (!email || !password) {
-                setError('Az email cím és a jelszó megadása kötelező');
+            // Validation using shared utility
+            const emailError = validateAuth.email(email);
+            if (emailError) {
+                setError(emailError);
+                setLoading(false);
+                return;
+            }
+
+            const passwordError = validateAuth.password(password);
+            if (passwordError) {
+                setError(passwordError);
                 setLoading(false);
                 return;
             }
 
             if (mode === 'signup') {
-                if (password !== confirmPassword) {
-                    setError('A jelszavak nem egyeznek');
-                    setLoading(false);
-                    return;
-                }
-
-                if (password.length < 8) {
-                    setError('A jelszónak legalább 8 karakter hosszúnak kell lennie');
-                    setLoading(false);
-                    return;
-                }
-
-                if (!/[A-Z]/.test(password)) {
-                    setError('A jelszónak tartalmaznia kell legalább egy nagybetűt');
-                    setLoading(false);
-                    return;
-                }
-
-                if (!/[a-z]/.test(password)) {
-                    setError('A jelszónak tartalmaznia kell legalább egy kisbetűt');
-                    setLoading(false);
-                    return;
-                }
-
-                if (!/[0-9]/.test(password)) {
-                    setError('A jelszónak tartalmaznia kell legalább egy számot');
+                const matchError = validateAuth.passwordMatch(password, confirmPassword);
+                if (matchError) {
+                    setError(matchError);
                     setLoading(false);
                     return;
                 }
@@ -84,8 +70,8 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay">
+            <div className="modal-content">
                 <button className="close-btn" onClick={onClose}>×</button>
                 <h2>{mode === 'login' ? 'Bejelentkezés' : 'Regisztráció'}</h2>
 

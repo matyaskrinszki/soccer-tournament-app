@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { getDb, initializeDb } from '../../../../lib/db';
+import { validateAuth } from '../../../../lib/validation';
 
 initializeDb();
 
@@ -11,48 +12,19 @@ export async function POST(request) {
     try {
         const { email, password } = await request.json();
 
-        // Validate input
-        if (!email || !password) {
+        // Validate input using shared utility
+        const emailError = validateAuth.email(email);
+        if (emailError) {
             return NextResponse.json(
-                { error: 'Az email cím és a jelszó megadása kötelező' },
+                { error: emailError },
                 { status: 400 }
             );
         }
 
-        // Email format validation
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
+        const passwordError = validateAuth.password(password);
+        if (passwordError) {
             return NextResponse.json(
-                { error: 'Érvénytelen email cím formátum' },
-                { status: 400 }
-            );
-        }
-
-        // Password validation
-        if (password.length < 8) {
-            return NextResponse.json(
-                { error: 'A jelszónak legalább 8 karakter hosszúnak kell lennie' },
-                { status: 400 }
-            );
-        }
-
-        if (!/[A-Z]/.test(password)) {
-            return NextResponse.json(
-                { error: 'A jelszónak tartalmaznia kell legalább egy nagybetűt' },
-                { status: 400 }
-            );
-        }
-
-        if (!/[a-z]/.test(password)) {
-            return NextResponse.json(
-                { error: 'A jelszónak tartalmaznia kell legalább egy kisbetűt' },
-                { status: 400 }
-            );
-        }
-
-        if (!/[0-9]/.test(password)) {
-            return NextResponse.json(
-                { error: 'A jelszónak tartalmaznia kell legalább egy számot' },
+                { error: passwordError },
                 { status: 400 }
             );
         }

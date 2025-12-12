@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { getDb, initializeDb } from '../../../../lib/db';
+import { validateAuth } from '../../../../lib/validation';
 
 initializeDb();
 
@@ -11,10 +12,19 @@ export async function POST(request) {
     try {
         const { email, password } = await request.json();
 
-        // Validate input
-        if (!email || !password) {
+        // Validate input using shared utility
+        const emailError = validateAuth.email(email);
+        if (emailError) {
             return NextResponse.json(
-                { error: 'Az email cím és a jelszó megadása kötelező' },
+                { error: emailError },
+                { status: 400 }
+            );
+        }
+
+        const passwordError = validateAuth.password(password);
+        if (passwordError) {
+            return NextResponse.json(
+                { error: passwordError },
                 { status: 400 }
             );
         }

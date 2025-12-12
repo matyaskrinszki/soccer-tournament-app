@@ -20,7 +20,7 @@ export default function Home() {
 
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [authMode, setAuthMode] = useState('login');
-    const [successMessage, setSuccessMessage] = useState(''); const handleOpenAuth = (mode) => {
+    const handleOpenAuth = (mode) => {
         setAuthMode(mode);
         setShowAuthModal(true);
     };
@@ -29,13 +29,7 @@ export default function Home() {
         setShowAuthModal(false);
     };
 
-    const handleAuthSuccess = (email, token, info) => {
-        if (info) {
-            setSuccessMessage(info.message);
-            setShowAuthModal(false);
-            setTimeout(() => setSuccessMessage(''), 5000);
-            return;
-        }
+    const handleAuthSuccess = (email, token) => {
         setIsLoggedIn(true);
         setUserEmail(email);
         setShowAuthModal(false);
@@ -124,23 +118,6 @@ export default function Home() {
                         <div className="score">2 - 2</div>
                     </div>
                 </section>
-
-                {successMessage && (
-                    <div style={{
-                        position: 'fixed',
-                        top: '20px',
-                        right: '20px',
-                        background: '#d4edda',
-                        color: '#155724',
-                        padding: '15px 20px',
-                        borderRadius: '5px',
-                        border: '1px solid #c3e6cb',
-                        maxWidth: '400px',
-                        zIndex: 1000
-                    }}>
-                        {successMessage}
-                    </div>
-                )}
 
                 {showAuthModal && (
                     <AuthModal

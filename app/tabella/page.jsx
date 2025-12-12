@@ -44,76 +44,32 @@ export default function StandingsPage() {
         setShowAuthModal(false);
     };
 
-    const [leagues, setLeagues] = useState([
-        {
-            id: '4',
-            name: 'Bundesliga',
-            country: 'Németország',
-            teams: [
-                { name: 'Bayern Munich', played: 10, wins: 8, draws: 2, losses: 0, points: 26 },
-                { name: 'Dortmund', played: 10, wins: 7, draws: 1, losses: 2, points: 22 },
-                { name: 'Leverkusen', played: 10, wins: 6, draws: 2, losses: 2, points: 20 },
-                { name: 'RB Leipzig', played: 10, wins: 5, draws: 2, losses: 3, points: 17 },
-                { name: 'Stuttgart', played: 10, wins: 4, draws: 1, losses: 5, points: 13 },
-                { name: 'Hoffenheim', played: 10, wins: 3, draws: 2, losses: 5, points: 11 },
-            ]
-        },
-        {
-            id: '1',
-            name: 'Premier League',
-            country: 'Anglia',
-            teams: [
-                { name: 'Manchester City', played: 10, wins: 8, draws: 1, losses: 1, points: 25 },
-                { name: 'Arsenal', played: 10, wins: 7, draws: 2, losses: 1, points: 23 },
-                { name: 'Liverpool', played: 10, wins: 7, draws: 1, losses: 2, points: 22 },
-                { name: 'Chelsea', played: 10, wins: 6, draws: 2, losses: 2, points: 20 },
-                { name: 'Manchester United', played: 10, wins: 5, draws: 2, losses: 3, points: 17 },
-                { name: 'Tottenham', played: 10, wins: 4, draws: 3, losses: 3, points: 15 },
-            ]
-        },
-        {
-            id: '2',
-            name: 'La Liga',
-            country: 'Spanyolország',
-            teams: [
-                { name: 'Real Madrid', played: 10, wins: 9, draws: 0, losses: 1, points: 27 },
-                { name: 'Barcelona', played: 10, wins: 7, draws: 2, losses: 1, points: 23 },
-                { name: 'Atlético Madrid', played: 10, wins: 6, draws: 3, losses: 1, points: 21 },
-                { name: 'Sevilla', played: 10, wins: 5, draws: 2, losses: 3, points: 17 },
-                { name: 'Real Sociedad', played: 10, wins: 4, draws: 2, losses: 4, points: 14 },
-                { name: 'Villarreal', played: 10, wins: 3, draws: 3, losses: 4, points: 12 },
-            ]
-        },
-        {
-            id: '3',
-            name: 'Série A',
-            country: 'Olaszország',
-            teams: [
-                { name: 'Napoli', played: 10, wins: 8, draws: 1, losses: 1, points: 25 },
-                { name: 'Inter Milan', played: 10, wins: 7, draws: 2, losses: 1, points: 23 },
-                { name: 'AC Milan', played: 10, wins: 6, draws: 3, losses: 1, points: 21 },
-                { name: 'Juventus', played: 10, wins: 5, draws: 2, losses: 3, points: 17 },
-                { name: 'Lazio', played: 10, wins: 4, draws: 2, losses: 4, points: 14 },
-                { name: 'Atalanta', played: 10, wins: 3, draws: 3, losses: 4, points: 12 },
-            ]
-        },
-        {
-            id: '5',
-            name: 'Ligue 1',
-            country: 'Franciaország',
-            teams: [
-                { name: 'Paris Saint-Germain', played: 10, wins: 8, draws: 1, losses: 1, points: 25 },
-                { name: 'Marseille', played: 10, wins: 6, draws: 3, losses: 1, points: 21 },
-                { name: 'Monaco', played: 10, wins: 6, draws: 2, losses: 2, points: 20 },
-                { name: 'Lyon', played: 10, wins: 5, draws: 2, losses: 3, points: 17 },
-                { name: 'Rennes', played: 10, wins: 4, draws: 1, losses: 5, points: 13 },
-                { name: 'Nice', played: 10, wins: 3, draws: 2, losses: 5, points: 11 },
-            ]
-        }
-    ]);
+    const [leagues, setLeagues] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
 
     const [selectedLeagueId, setSelectedLeagueId] = useState(null);
     const [showLeagueDropdown, setShowLeagueDropdown] = useState(false);
+
+    useEffect(() => {
+        const fetchLeagues = async () => {
+            try {
+                setLoading(true);
+                const response = await fetch('/api/leagues');
+                if (!response.ok) {
+                    throw new Error('Hiba történt a bajnokságok betöltésekor');
+                }
+                const data = await response.json();
+                setLeagues(data.leagues);
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchLeagues();
+    }, []);
 
     return (
         <div className="standings-page">
@@ -133,35 +89,45 @@ export default function StandingsPage() {
                     </div>
                 </header>
 
-                <div className="league-selector-container">
-                    <div className="league-selector">
-                        <button
-                            className="league-selector-btn"
-                            onClick={() => setShowLeagueDropdown(!showLeagueDropdown)}
-                        >
-                            {selectedLeagueId ? leagues.find(l => l.id === selectedLeagueId)?.name : 'Válassz ligát'}
-                            <span className="dropdown-arrow">{showLeagueDropdown ? '▲' : '▼'}</span>
-                        </button>
-
-                        {showLeagueDropdown && (
-                            <div className="league-dropdown">
-                                {leagues.map((league) => (
-                                    <div
-                                        key={league.id}
-                                        className="league-option"
-                                        onClick={() => {
-                                            setSelectedLeagueId(league.id);
-                                            setShowLeagueDropdown(false);
-                                        }}
-                                    >
-                                        <p className="league-option-country">{league.country}</p>
-                                        <p className="league-option-name">{league.name}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
+                {loading ? (
+                    <div className="loading-message">
+                        <p>Bajnokságok betöltése...</p>
                     </div>
-                </div>
+                ) : error ? (
+                    <div className="error-message">
+                        <p>{error}</p>
+                    </div>
+                ) : (
+                    <div className="league-selector-container">
+                        <div className="league-selector">
+                            <button
+                                className="league-selector-btn"
+                                onClick={() => setShowLeagueDropdown(!showLeagueDropdown)}
+                            >
+                                {selectedLeagueId ? leagues.find(l => l.id === selectedLeagueId)?.name : 'Válassz ligát'}
+                                <span className="dropdown-arrow">{showLeagueDropdown ? '▲' : '▼'}</span>
+                            </button>
+
+                            {showLeagueDropdown && (
+                                <div className="league-dropdown">
+                                    {leagues.map((league) => (
+                                        <div
+                                            key={league.id}
+                                            className="league-option"
+                                            onClick={() => {
+                                                setSelectedLeagueId(league.id);
+                                                setShowLeagueDropdown(false);
+                                            }}
+                                        >
+                                            <p className="league-option-country">{league.country}</p>
+                                            <p className="league-option-name">{league.name}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 {selectedLeagueId && leagues.find(l => l.id === selectedLeagueId) && (
                     <section className="league-standings">
@@ -193,7 +159,7 @@ export default function StandingsPage() {
                                                         <span className="position">{idx + 1}</span>
                                                         <span className="team-name">{team.name}</span>
                                                     </td>
-                                                    <td>{team.played}</td>
+                                                    <td>{team.matches}</td>
                                                     <td>{team.wins}</td>
                                                     <td>{team.draws}</td>
                                                     <td>{team.losses}</td>
