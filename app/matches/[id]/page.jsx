@@ -154,7 +154,7 @@ export default function MatchPage() {
                                                 {homeGoals.map(g => (
                                                     <li key={g.id}>
                                                         <span className="minute">{g.minute}'.</span>
-                                                        <span className="scorer">{g.playerName}</span>
+                                                        <Link href={`/players/${g.playerId}`} className="scorer">{g.playerName}</Link>
                                                     </li>
                                                 ))}
                                             </ul>
@@ -169,7 +169,7 @@ export default function MatchPage() {
                                                 {awayGoals.map(g => (
                                                     <li key={g.id}>
                                                         <span className="minute">{g.minute}'.</span>
-                                                        <span className="scorer">{g.playerName}</span>
+                                                        <Link href={`/players/${g.playerId}`} className="scorer">{g.playerName}</Link>
                                                     </li>
                                                 ))}
                                             </ul>

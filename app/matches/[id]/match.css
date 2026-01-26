@@ -147,6 +147,12 @@
 .scorer {
     color: #3E5879;
     font-weight: 600;
+    text-decoration: none;
+}
+
+.scorer:hover {
+    text-decoration: underline;
+    color: #213555;
 }
 
 .muted {
