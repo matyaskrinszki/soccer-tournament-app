@@ -1,0 +1,113 @@
+.player-page {
+    min-height: 100vh;
+    background: linear-gradient(180deg, #F5EFE7 0%, #F5EFE7 60%);
+}
+
+.player-container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.player-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.95rem;
+}
+
+.player-breadcrumb a {
+    color: #213555;
+    text-decoration: none;
+    font-weight: 600;
+    padding: 0.4rem 0.75rem;
+    border: 1px solid #D8C4B6;
+    border-radius: 8px;
+    background: #ffffff;
+    transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.player-breadcrumb a:hover {
+    background-color: #F5EFE7;
+    box-shadow: 0 8px 16px rgba(33, 53, 85, 0.08);
+}
+
+.crumb {
+    color: #3E5879;
+}
+
+.player-card {
+    background: #ffffff;
+    border: 1px solid #D8C4B6;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 8px 20px rgba(33, 53, 85, 0.05);
+}
+
+.player-card.error {
+    border-color: #d32f2f;
+    color: #d32f2f;
+    background: #ffebee;
+}
+
+.player-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.player-header h1 {
+    margin: 0 0 0.35rem 0;
+}
+
+.stat-pill {
+    background: #3E5879;
+    color: #ffffff;
+    padding: 0.8rem 1rem;
+    border-radius: 10px;
+    text-align: center;
+    min-width: 120px;
+    box-shadow: 0 8px 16px rgba(62, 88, 121, 0.25);
+}
+
+.stat-pill span {
+    display: block;
+    font-size: 0.85rem;
+    opacity: 0.85;
+}
+
+.stat-pill strong {
+    font-size: 1.6rem;
+}
+
+.player-meta {
+    margin-top: 1rem;
+    color: #213555;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.team-link {
+    color: #213555;
+    text-decoration: none;
+}
+
+.team-link:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 640px) {
+    .player-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .stat-pill {
+        align-self: flex-start;
+    }
+}

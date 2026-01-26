@@ -154,10 +154,12 @@ export default function StandingsPage() {
                                         </thead>
                                         <tbody>
                                             {league.teams.map((team, idx) => (
-                                                <tr key={team.name}>
+                                                <tr key={team.id}>
                                                     <td>
                                                         <span className="position">{idx + 1}</span>
-                                                        <span className="team-name">{team.name}</span>
+                                                        <Link href={`/teams/${team.id}`} className="team-name">
+                                                            {team.name}
+                                                        </Link>
                                                     </td>
                                                     <td>{team.matches}</td>
                                                     <td>{team.wins}</td>

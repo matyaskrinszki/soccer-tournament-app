@@ -1,0 +1,234 @@
+.team-page {
+    min-height: 100vh;
+    background: linear-gradient(180deg, #F5EFE7 0%, #F5EFE7 60%);
+}
+
+.team-container {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.team-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.95rem;
+}
+
+.team-breadcrumb a {
+    color: #213555;
+    text-decoration: none;
+    font-weight: 600;
+    padding: 0.4rem 0.75rem;
+    border: 1px solid #D8C4B6;
+    border-radius: 8px;
+    background: #ffffff;
+    transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.team-breadcrumb a:hover {
+    background-color: #F5EFE7;
+    box-shadow: 0 8px 16px rgba(33, 53, 85, 0.08);
+}
+
+.crumb {
+    color: #3E5879;
+}
+
+.team-card {
+    background: #ffffff;
+    border: 1px solid #D8C4B6;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 8px 20px rgba(33, 53, 85, 0.05);
+}
+
+.team-card.error {
+    border-color: #d32f2f;
+    color: #d32f2f;
+    background: #ffebee;
+}
+
+.team-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.team-header h1 {
+    margin: 0 0 0.25rem 0;
+}
+
+.points-pill {
+    background: #3E5879;
+    color: #ffffff;
+    padding: 0.8rem 1rem;
+    border-radius: 10px;
+    text-align: center;
+    min-width: 120px;
+    box-shadow: 0 8px 16px rgba(62, 88, 121, 0.25);
+}
+
+.points-pill span {
+    display: block;
+    font-size: 0.85rem;
+    opacity: 0.85;
+}
+
+.points-pill strong {
+    font-size: 1.6rem;
+}
+
+.team-stats-grid {
+    margin-top: 1.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+}
+
+.stat-box {
+    border: 1px solid #D8C4B6;
+    border-radius: 10px;
+    padding: 1rem;
+    background: #F5EFE7;
+    text-align: center;
+}
+
+.label {
+    margin: 0;
+    font-size: 0.95rem;
+    color: #3E5879;
+    font-weight: 600;
+}
+
+.value {
+    margin: 0.35rem 0 0 0;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #213555;
+}
+
+.section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.section-head h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #213555;
+}
+
+.match-toggle {
+    display: flex;
+    gap: 0.5rem;
+    border: 1px solid #D8C4B6;
+    border-radius: 8px;
+    padding: 0.25rem;
+    background: #F5EFE7;
+}
+
+.toggle-btn {
+    padding: 0.5rem 1rem;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    color: #3E5879;
+    transition: all 150ms ease;
+}
+
+.toggle-btn:hover {
+    background: #D8C4B6;
+}
+
+.toggle-btn.active {
+    background: #213555;
+    color: #ffffff;
+}
+
+.muted {
+    color: #3E5879;
+    margin: 0.5rem 0 0 0;
+}
+
+.upcoming-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.match-row {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border: 1px solid #D8C4B6;
+    border-radius: 10px;
+    background: #F5EFE7;
+}
+
+.match-date {
+    font-weight: 700;
+    color: #213555;
+}
+
+.match-vs {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.home-away {
+    font-size: 0.85rem;
+    color: #3E5879;
+}
+
+.opponent {
+    font-weight: 700;
+    color: #213555;
+}
+
+.result {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #3E5879;
+    margin-top: 0.25rem;
+}
+
+.match-league {
+    text-align: right;
+    color: #3E5879;
+    font-weight: 600;
+}
+
+@media (max-width: 700px) {
+    .match-row {
+        grid-template-columns: 1fr;
+    }
+
+    .match-league {
+        text-align: left;
+    }
+}
+
+@media (max-width: 640px) {
+    .team-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .points-pill {
+        align-self: flex-start;
+    }
+}

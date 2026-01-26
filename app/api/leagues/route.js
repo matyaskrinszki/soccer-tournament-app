@@ -29,9 +29,9 @@ export async function GET() {
 
             leagues.forEach((league, index) => {
                 db.all(
-                    "SELECT name, matches, wins, draws, losses, points FROM teams WHERE league_id = ? ORDER BY points DESC, name ASC",
-                    [league.id],
-                    (err, teams) => {
+                        "SELECT id, name, matches, wins, draws, losses, points FROM teams WHERE league_id = ? ORDER BY points DESC, name ASC",
+                        [league.id],
+                        (err, teams) => {
                         if (err) {
                             db.close();
                             resolve(NextResponse.json(
