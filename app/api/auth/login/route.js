@@ -32,7 +32,7 @@ export async function POST(request) {
         const db = getDb();
 
         return new Promise((resolve) => {
-            db.get('SELECT id, password FROM users WHERE email = ?', [email], async (err, row) => {
+            db.get('SELECT id, password FROM players WHERE email = ?', [email], async (err, row) => {
                 if (err) {
                     db.close();
                     resolve(
@@ -69,7 +69,7 @@ export async function POST(request) {
                 }
 
                 const token = jwt.sign(
-                    { userId: row.id, email },
+                    { playerId: row.id, userId: row.id, email },
                     JWT_SECRET,
                     { expiresIn: '7d' }
                 );
@@ -77,7 +77,7 @@ export async function POST(request) {
                 db.close();
                 resolve(
                     NextResponse.json(
-                        { success: true, token, email },
+                        { success: true, token, email, playerId: row.id },
                         { status: 200 }
                     )
                 );

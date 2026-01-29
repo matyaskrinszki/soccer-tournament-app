@@ -76,7 +76,7 @@ export default function PlayerPage() {
             <main className="player-container">
                 <div className="player-breadcrumb">
                     <Link href="/tabella">Vissza a táblához</Link>
-                    {player && (
+                    {player && player.team && (
                         <span className="crumb">{player.team.leagueName}</span>
                     )}
                 </div>
@@ -97,9 +97,9 @@ export default function PlayerPage() {
                     <section className="player-card">
                         <div className="player-header">
                             <div>
-                                <p className="eyebrow">{player.team.leagueName}</p>
+                                {player.team && <p className="eyebrow">{player.team.leagueName}</p>}
                                 <h1>{player.name}</h1>
-                                <p className="subhead">Pozíció: {player.position || 'N/A'}</p>
+                                {player.email && <p className="subhead">Email: {player.email}</p>}
                             </div>
                             <div className="stat-pill">
                                 <span>Gólok</span>
@@ -108,7 +108,11 @@ export default function PlayerPage() {
                         </div>
 
                         <div className="player-meta">
-                            <p><strong>Csapat:</strong> <Link href={`/teams/${player.team.id}`} className="team-link">{player.team.name}</Link></p>
+                            {player.team ? (
+                                <p><strong>Csapat:</strong> <Link href={`/teams/${player.team.id}`} className="team-link">{player.team.name}</Link></p>
+                            ) : (
+                                <p><strong>Csapat:</strong> <span className="no-team">Nincs csapata</span></p>
+                            )}
                             <p><strong>Játékos ID:</strong> {player.id}</p>
                         </div>
                     </section>

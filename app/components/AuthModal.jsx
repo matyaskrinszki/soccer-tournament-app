@@ -62,6 +62,9 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
             // Success
             localStorage.setItem('token', data.token);
             localStorage.setItem('email', data.email);
+            if (data.playerId) {
+                localStorage.setItem('playerId', String(data.playerId));
+            }
             onSuccess(data.email, data.token);
         } catch (err) {
             setError('Hálózati hiba történt. Kérjük, próbáld újra.');

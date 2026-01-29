@@ -35,9 +35,9 @@ export async function POST(request) {
         // Get database
         const db = getDb();
 
-        // Check if user exists
+        // Check if player exists
         return new Promise((resolve) => {
-            db.get('SELECT id FROM users WHERE email = ?', [email], (err, row) => {
+            db.get('SELECT id FROM players WHERE email = ?', [email], (err, row) => {
                 if (err) {
                     db.close();
                     resolve(
@@ -60,25 +60,25 @@ export async function POST(request) {
                     return;
                 }
 
-                // Create user
+                // Create player
                 db.run(
-                    'INSERT INTO users (email, password) VALUES (?, ?)',
-                    [email, hashedPassword],
+                    'INSERT INTO players (email, password, name, team_id) VALUES (?, ?, ?, NULL)',
+                    [email, hashedPassword, email.split('@')[0]],
                     function (err) {
                         if (err) {
                             db.close();
                             resolve(
                                 NextResponse.json(
-                                    { error: 'Nem sikerült létrehozni a felhasználót' },
+                                    { error: 'Nem sikerült létrehozni a játékost' },
                                     { status: 500 }
                                 )
                             );
                             return;
                         }
 
-                        // Create JWT token
+                        // Create JWT token with playerId
                         const token = jwt.sign(
-                            { userId: this.lastID, email },
+                            { playerId: this.lastID, userId: this.lastID, email },
                             JWT_SECRET,
                             { expiresIn: '7d' }
                         );
@@ -86,7 +86,7 @@ export async function POST(request) {
                         db.close();
                         resolve(
                             NextResponse.json(
-                                { success: true, token, email },
+                                { success: true, token, email, playerId: this.lastID },
                                 { status: 201 }
                             )
                         );

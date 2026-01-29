@@ -11,6 +11,8 @@ export default function TeamClient({ id }) {
     const [error, setError] = useState('');
     const [upcomingMatches, setUpcomingMatches] = useState([]);
     const [previousMatches, setPreviousMatches] = useState([]);
+    const [players, setPlayers] = useState([]);
+    const [contentView, setContentView] = useState('matches'); // 'matches' or 'players'
     const [matchView, setMatchView] = useState('upcoming'); // 'upcoming' or 'previous'
 
     const [isLoggedIn, setIsLoggedIn] = useState(() => {
@@ -65,7 +67,21 @@ export default function TeamClient({ id }) {
             }
         };
 
+        const fetchPlayers = async () => {
+            try {
+                const response = await fetch(`/api/players`);
+                const data = await response.json();
+                if (response.ok) {
+                    const teamPlayers = (data.players || []).filter(p => p.team?.id === parseInt(id));
+                    setPlayers(teamPlayers);
+                }
+            } catch (err) {
+                // ignore
+            }
+        };
+
         fetchTeam();
+        fetchPlayers();
     }, [id]);
 
     return (
@@ -136,81 +152,114 @@ export default function TeamClient({ id }) {
 
                         <section className="team-card">
                             <div className="section-head">
-                                <h2>Mérkőzések</h2>
                                 <div className="match-toggle">
                                     <button
-                                        className={`toggle-btn ${matchView === 'upcoming' ? 'active' : ''}`}
-                                        onClick={() => setMatchView('upcoming')}
+                                        className={`toggle-btn ${contentView === 'matches' ? 'active' : ''}`}
+                                        onClick={() => setContentView('matches')}
                                     >
-                                        Közelgő
+                                        Mérkőzések
                                     </button>
                                     <button
-                                        className={`toggle-btn ${matchView === 'previous' ? 'active' : ''}`}
-                                        onClick={() => setMatchView('previous')}
+                                        className={`toggle-btn ${contentView === 'players' ? 'active' : ''}`}
+                                        onClick={() => setContentView('players')}
                                     >
-                                        Korábbi
+                                        Játékosok
                                     </button>
                                 </div>
+                                {contentView === 'matches' && (
+                                    <div className="match-toggle">
+                                        <button
+                                            className={`toggle-btn ${matchView === 'upcoming' ? 'active' : ''}`}
+                                            onClick={() => setMatchView('upcoming')}
+                                        >
+                                            Közelgő
+                                        </button>
+                                        <button
+                                            className={`toggle-btn ${matchView === 'previous' ? 'active' : ''}`}
+                                            onClick={() => setMatchView('previous')}
+                                        >
+                                            Korábbi
+                                        </button>
+                                    </div>
+                                )}
                             </div>
 
-                            {matchView === 'upcoming' ? (
-                                upcomingMatches.length === 0 ? (
-                                    <p className="muted">Nincsenek közelgő mérkőzések.</p>
-                                ) : (
-                                    <div className="upcoming-list">
-                                        {upcomingMatches.map((m) => {
-                                            const isHome = m.homeTeamId === team.id;
-                                            const opponent = isHome ? m.awayName : m.homeName;
-                                            const date = new Date(m.matchDate);
-                                            const formatted = date.toLocaleString('hu-HU', {
-                                                month: 'short',
-                                                day: 'numeric',
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                            });
+                            {contentView === 'matches' && (
+                                matchView === 'upcoming' ? (
+                                    upcomingMatches.length === 0 ? (
+                                        <p className="muted">Nincsenek közelgő mérkőzések.</p>
+                                    ) : (
+                                        <div className="upcoming-list">
+                                            {upcomingMatches.map((m) => {
+                                                const isHome = m.homeTeamId === team.id;
+                                                const opponent = isHome ? m.awayName : m.homeName;
+                                                const date = new Date(m.matchDate);
+                                                const formatted = date.toLocaleString('hu-HU', {
+                                                    month: 'short',
+                                                    day: 'numeric',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit'
+                                                });
 
-                                            return (
-                                                <Link href={`/matches/${m.id}`} key={m.id} className="match-row">
-                                                    <div className="match-date">{formatted}</div>
-                                                    <div className="match-vs">
-                                                        <span className="home-away">{isHome ? 'Otthon' : 'Idegenben'}</span>
-                                                        <span className="opponent">{opponent}</span>
-                                                    </div>
-                                                    <div className="match-league">{m.leagueName}</div>
-                                                </Link>
-                                            );
-                                        })}
-                                    </div>
+                                                return (
+                                                    <Link href={`/matches/${m.id}`} key={m.id} className="match-row">
+                                                        <div className="match-date">{formatted}</div>
+                                                        <div className="match-vs">
+                                                            <span className="home-away">{isHome ? 'Otthon' : 'Idegenben'}</span>
+                                                            <span className="opponent">{opponent}</span>
+                                                        </div>
+                                                        <div className="match-league">{m.leagueName}</div>
+                                                    </Link>
+                                                );
+                                            })}
+                                        </div>
+                                    )
+                                ) : (
+                                    previousMatches.length === 0 ? (
+                                        <p className="muted">Nincsenek korábbi mérkőzések.</p>
+                                    ) : (
+                                        <div className="upcoming-list">
+                                            {previousMatches.map((m) => {
+                                                const isHome = m.homeTeamId === team.id;
+                                                const opponent = isHome ? m.awayName : m.homeName;
+                                                const date = new Date(m.matchDate);
+                                                const formatted = date.toLocaleString('hu-HU', {
+                                                    month: 'short',
+                                                    day: 'numeric',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit'
+                                                });
+                                                const result = `${m.homeScore} - ${m.awayScore}`;
+
+                                                return (
+                                                    <Link href={`/matches/${m.id}`} key={m.id} className="match-row">
+                                                        <div className="match-date">{formatted}</div>
+                                                        <div className="match-vs">
+                                                            <span className="home-away">{isHome ? 'Otthon' : 'Idegenben'}</span>
+                                                            <span className="opponent">{opponent}</span>
+                                                            <span className="result">{result}</span>
+                                                        </div>
+                                                        <div className="match-league">{m.leagueName}</div>
+                                                    </Link>
+                                                );
+                                            })}
+                                        </div>
+                                    )
                                 )
-                            ) : (
-                                previousMatches.length === 0 ? (
-                                    <p className="muted">Nincsenek korábbi mérkőzések.</p>
-                                ) : (
-                                    <div className="upcoming-list">
-                                        {previousMatches.map((m) => {
-                                            const isHome = m.homeTeamId === team.id;
-                                            const opponent = isHome ? m.awayName : m.homeName;
-                                            const date = new Date(m.matchDate);
-                                            const formatted = date.toLocaleString('hu-HU', {
-                                                month: 'short',
-                                                day: 'numeric',
-                                                hour: '2-digit',
-                                                minute: '2-digit'
-                                            });
-                                            const result = `${m.homeScore} - ${m.awayScore}`;
+                            )}
 
-                                            return (
-                                                <Link href={`/matches/${m.id}`} key={m.id} className="match-row">
-                                                    <div className="match-date">{formatted}</div>
-                                                    <div className="match-vs">
-                                                        <span className="home-away">{isHome ? 'Otthon' : 'Idegenben'}</span>
-                                                        <span className="opponent">{opponent}</span>
-                                                        <span className="result">{result}</span>
-                                                    </div>
-                                                    <div className="match-league">{m.leagueName}</div>
-                                                </Link>
-                                            );
-                                        })}
+                            {contentView === 'players' && (
+                                players.length === 0 ? (
+                                    <p className="muted">Nincsenek játékosok ebben a csapatban.</p>
+                                ) : (
+                                    <div className="players-grid">
+                                        {players.map((player) => (
+                                            <Link href={`/players/${player.id}`} key={player.id} className="player-card-link">
+                                                <div className="player-mini-card">
+                                                    <h3>{player.name || player.email}</h3>
+                                                </div>
+                                            </Link>
+                                        ))}
                                     </div>
                                 )
                             )}

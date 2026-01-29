@@ -212,6 +212,44 @@
     font-weight: 600;
 }
 
+.players-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.player-card-link {
+    text-decoration: none;
+}
+
+.player-mini-card {
+    padding: 1rem;
+    background: #F5EFE7;
+    border: 1px solid #D8C4B6;
+    border-radius: 10px;
+    transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+
+.player-card-link:hover .player-mini-card {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 16px rgba(33, 53, 85, 0.1);
+    border-color: #3E5879;
+}
+
+.player-mini-card h3 {
+    margin: 0 0 0.35rem 0;
+    font-size: 1rem;
+    color: #213555;
+}
+
+.player-mini-card .position {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #3E5879;
+    font-weight: 600;
+}
+
 @media (max-width: 700px) {
     .match-row {
         grid-template-columns: 1fr;

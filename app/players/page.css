@@ -1,0 +1,118 @@
+.players-page {
+    min-height: 100vh;
+    background: linear-gradient(180deg, #F5EFE7 0%, #F5EFE7 60%);
+}
+
+.players-container {
+    padding: 2.5rem 1.25rem 3rem;
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.players-header h1 {
+    margin: 0 0 0.35rem 0;
+}
+
+.eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    font-size: 0.8rem;
+    opacity: 0.9;
+    margin: 0 0 0.35rem 0;
+}
+
+.subhead {
+    margin: 0;
+    color: #3E5879;
+}
+
+.players-card {
+    background: #ffffff;
+    border: 1px solid #D8C4B6;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 6px 16px rgba(33, 53, 85, 0.05);
+}
+
+.players-card.error {
+    border-color: #f5c2c7;
+    background: #fdecee;
+    color: #8a1c1c;
+}
+
+.players-card.empty {
+    border-style: dashed;
+    text-align: center;
+    color: #3E5879;
+}
+
+.players-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+}
+
+.player-row {
+    position: relative;
+    gap: 1rem;
+    padding: 1.25rem 1.35rem;
+    background: #ffffff;
+    border: 1px solid #D8C4B6;
+    border-radius: 12px;
+    color: #213555;
+    box-shadow: 0 8px 18px rgba(33, 53, 85, 0.06);
+    transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+}
+
+.player-row:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 26px rgba(33, 53, 85, 0.12);
+    border-color: #3E5879;
+}
+
+.player-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+}
+
+.player-row h3 {
+    margin: 0 0 0.35rem 0;
+}
+
+.player-meta {
+    margin: 0.15rem 0;
+    color: #3E5879;
+    font-size: 0.9rem;
+}
+
+.recruit-player-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    padding: 0.5rem 0.9rem;
+    background: #3E5879;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: background-color 150ms ease, transform 120ms ease, box-shadow 120ms ease;
+    z-index: 10;
+}
+
+.recruit-player-btn:hover:not(:disabled) {
+    background-color: #2d4560;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(62, 88, 121, 0.2);
+}
+
+.recruit-player-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
