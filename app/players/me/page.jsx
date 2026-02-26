@@ -43,6 +43,13 @@ export default function PlayerMePage() {
 
     const canCreateTeam = useMemo(() => player && !player.team, [player]);
 
+    const [joinRequests, setJoinRequests] = useState([]);
+    const [recruitmentInvitations, setRecruitmentInvitations] = useState([]);
+    const [teamApplications, setTeamApplications] = useState([]);
+    const [captainTeamId, setCaptainTeamId] = useState(null);
+    const [requestsLoading, setRequestsLoading] = useState(false);
+    const [processingRequestId, setProcessingRequestId] = useState(null);
+
     const handleOpenAuth = (mode) => {
         setAuthMode(mode);
         setShowAuthModal(true);
@@ -129,6 +136,30 @@ export default function PlayerMePage() {
 
         fetchLeagues();
     }, [isLoggedIn, leagueId]);
+
+    useEffect(() => {
+        if (!playerId || !isLoggedIn) return;
+
+        const fetchRequests = async () => {
+            try {
+                setRequestsLoading(true);
+                const res = await fetch(`/api/player-requests?playerId=${playerId}`);
+                const data = await res.json();
+                if (res.ok) {
+                    setJoinRequests(data.joinRequests || []);
+                    setRecruitmentInvitations(data.recruitmentInvitations || []);
+                    setTeamApplications(data.teamApplications || []);
+                    setCaptainTeamId(data.captainTeamId || null);
+                }
+            } catch (err) {
+                // ignore
+            } finally {
+                setRequestsLoading(false);
+            }
+        };
+
+        fetchRequests();
+    }, [playerId, isLoggedIn]);
 
     const handleProfileSubmit = async (event) => {
         event.preventDefault();
@@ -219,6 +250,78 @@ export default function PlayerMePage() {
         }
     };
 
+    const handleJoinRequestResponse = async (requestId, action) => {
+        setProcessingRequestId(requestId);
+        try {
+            const res = await fetch(`/api/join-requests/${requestId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ action, captainId: playerId }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || 'Nem sikerült a kérést feldolgozni');
+            }
+
+            // Refresh requests
+            const requestRes = await fetch(`/api/player-requests?playerId=${playerId}`);
+            const requestData = await requestRes.json();
+            if (requestRes.ok) {
+                setJoinRequests(requestData.joinRequests || []);
+                setRecruitmentInvitations(requestData.recruitmentInvitations || []);
+                setTeamApplications(requestData.teamApplications || []);
+            }
+
+            setSuccess(action === 'accept' ? 'Kérés elfogadva.' : 'Kérés elutasítva.');
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setProcessingRequestId(null);
+        }
+    };
+
+    const handleRecruitmentInvitationResponse = async (invitationId, action) => {
+        setProcessingRequestId(invitationId);
+        try {
+            const res = await fetch(`/api/recruitment-invitations/${invitationId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ action, playerId }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || 'Nem sikerült a meghívót feldolgozni');
+            }
+
+            // Refresh requests
+            const requestRes = await fetch(`/api/player-requests?playerId=${playerId}`);
+            const requestData = await requestRes.json();
+            if (requestRes.ok) {
+                setJoinRequests(requestData.joinRequests || []);
+                setRecruitmentInvitations(requestData.recruitmentInvitations || []);
+                setTeamApplications(requestData.teamApplications || []);
+            }
+
+            setSuccess(action === 'accept' ? 'Meghívó elfogadva. Csatlakoztál a csapathoz!' : 'Meghívó elutasítva.');
+            if (action === 'accept') {
+                // Refresh player data to update team info
+                const playerRes = await fetch(`/api/players/${playerId}`);
+                const playerData = await playerRes.json();
+                if (playerRes.ok) {
+                    setPlayer(playerData.player);
+                }
+            }
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setProcessingRequestId(null);
+        }
+    };
+
     return (
         <div className="player-me-page">
             <Header
@@ -262,7 +365,6 @@ export default function PlayerMePage() {
                             <div className="player-header">
                                 <div>
                                     <h1>Saját profil</h1>
-                                    <p className="subhead">Itt módosíthatod az adataidat és létrehozhatsz csapatot.</p>
                                 </div>
                             </div>
 
@@ -346,6 +448,101 @@ export default function PlayerMePage() {
                             )}
                         </section>
 
+                        <section className="player-card">
+                            <h2>Meghívók/Jelentkezések</h2>
+                            
+                            {requestsLoading ? (
+                                <p>Betöltés...</p>
+                            ) : (
+                                <>
+                                    {/* Join Requests */}
+                                    {joinRequests.length > 0 && (
+                                        <div className="request-section">
+                                            <h3>Csapathoz csatlakozási kérelmek</h3>
+                                            <p className="section-desc">Olyan csapatokra vonatkozó kérelmeid, amelyekhez csatlakozni szeretnél.</p>
+                                            {joinRequests.map((req) => (
+                                                <div key={req.id} className="request-item">
+                                                    <div className="request-info">
+                                                        <p className="team-name">{req.teamName}</p>
+                                                        <p className="league-name">{req.leagueName}</p>
+                                                    </div>
+                                                    <p className="request-status">Függőben</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Recruitment Invitations */}
+                                    {recruitmentInvitations.length > 0 && (
+                                        <div className="request-section">
+                                            <h3>Csapat meghívók</h3>
+                                            <p className="section-desc">Csapatok meghívói, hogy csatlakozz hozzájuk.</p>
+                                            {recruitmentInvitations.map((inv) => (
+                                                <div key={inv.id} className="request-item">
+                                                    <div className="request-info">
+                                                        <p className="team-name">{inv.teamName}</p>
+                                                        <p className="league-name">{inv.leagueName} • Kapitány: {inv.captainName}</p>
+                                                    </div>
+                                                    <div className="request-actions">
+                                                        <button
+                                                            className="btn-accept"
+                                                            onClick={() => handleRecruitmentInvitationResponse(inv.id, 'accept')}
+                                                            disabled={processingRequestId === inv.id}
+                                                        >
+                                                            {processingRequestId === inv.id ? 'Feldolgozás...' : 'Elfogad'}
+                                                        </button>
+                                                        <button
+                                                            className="btn-reject"
+                                                            onClick={() => handleRecruitmentInvitationResponse(inv.id, 'reject')}
+                                                            disabled={processingRequestId === inv.id}
+                                                        >
+                                                            {processingRequestId === inv.id ? 'Feldolgozás...' : 'Elutasít'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Team Applications (for captains) */}
+                                    {teamApplications.length > 0 && (
+                                        <div className="request-section">
+                                            <h3>Csatlakozási kérelmek (Te vagy a kapitány)</h3>
+                                            <p className="section-desc">Játékosok kérelmei, hogy csatlakozzanak a csapatodhoz.</p>
+                                            {teamApplications.map((app) => (
+                                                <div key={app.id} className="request-item">
+                                                    <div className="request-info">
+                                                        <p className="player-name">{app.playerName}</p>
+                                                        <p className="player-email">{app.playerEmail}</p>
+                                                    </div>
+                                                    <div className="request-actions">
+                                                        <button
+                                                            className="btn-accept"
+                                                            onClick={() => handleJoinRequestResponse(app.id, 'accept')}
+                                                            disabled={processingRequestId === app.id}
+                                                        >
+                                                            {processingRequestId === app.id ? 'Feldolgozás...' : 'Elfogad'}
+                                                        </button>
+                                                        <button
+                                                            className="btn-reject"
+                                                            onClick={() => handleJoinRequestResponse(app.id, 'reject')}
+                                                            disabled={processingRequestId === app.id}
+                                                        >
+                                                            {processingRequestId === app.id ? 'Feldolgozás...' : 'Elutasít'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {joinRequests.length === 0 && recruitmentInvitations.length === 0 && teamApplications.length === 0 && (
+                                        <p className="muted">Nincs függőben lévő meghívó vagy jelentkezés.</p>
+                                    )}
+                                </>
+                            )}
+                        </section>
+
                         {success && (
                             <div className="player-card success">
                                 <p>{success}</p>
@@ -365,3 +562,4 @@ export default function PlayerMePage() {
         </div>
     );
 }
+

@@ -121,26 +121,25 @@ export default function TeamsBrowsePage() {
 
         setJoiningTeamId(teamId);
         try {
-            const res = await fetch(`/api/teams/${teamId}/join`, {
+            const res = await fetch(`/api/join-requests`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ playerId }),
+                body: JSON.stringify({ playerId, teamId }),
             });
 
             if (!res.ok) {
                 const data = await res.json();
-                alert(data.error || 'Nem sikerült csatlakozni a csapathoz');
+                alert(data.error || 'Nem sikerült csatlakozási kérelmet elküldeni');
                 setJoiningTeamId(null);
                 return;
             }
 
-            const joinedTeam = teams.find((t) => t.id === teamId);
-            setPlayerTeam(joinedTeam || { id: teamId });
+            alert('Csatlakozási kérelmet sikeresen elküldtél! Várd a csapatkapitány döntésére.');
             setJoiningTeamId(null);
         } catch (err) {
-            alert('Nem sikerült csatlakozni a csapathoz');
+            alert('Nem sikerült csatlakozási kérelmet elküldeni');
             setJoiningTeamId(null);
         }
     };
@@ -201,7 +200,7 @@ export default function TeamsBrowsePage() {
                                         onClick={(e) => handleJoinTeam(e, team.id)}
                                         disabled={joiningTeamId === team.id}
                                     >
-                                        {joiningTeamId === team.id ? 'Csatlakozás...' : 'Csatlakozás'}
+                                        {joiningTeamId === team.id ? 'Küldés...' : 'Kérelem küldése'}
                                     </button>
                                 )}
                             </Link>

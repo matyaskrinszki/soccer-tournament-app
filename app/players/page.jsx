@@ -140,33 +140,21 @@ export default function PlayersBrowsePage() {
         setRecruitingId(player.id);
 
         try {
-            const res = await fetch(`/api/teams/${captainTeam.id}/recruit`, {
+            const res = await fetch(`/api/recruitment-invitations`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     captainId: currentPlayerId,
                     playerId: player.id,
+                    teamId: captainTeam.id,
                 }),
             });
             const data = await res.json();
             if (!res.ok) {
-                throw new Error(data.error || 'Nem sikerült a játékost hozzáadni a csapathoz');
+                throw new Error(data.error || 'Nem sikerült a meghívót elküldeni');
             }
 
-            setPlayers((prev) =>
-                prev.map((p) =>
-                    p.id === player.id
-                        ? {
-                            ...p,
-                            team: {
-                                id: captainTeam.id,
-                                name: captainTeam.name,
-                                leagueName: captainTeam.leagueName,
-                            },
-                        }
-                        : p
-                )
-            );
+            alert('Meghívót sikeresen elküldtél a játékosnak!');
         } catch (err) {
             setRecruitError(err.message);
         } finally {
@@ -241,7 +229,7 @@ export default function PlayersBrowsePage() {
                                         }}
                                         disabled={Boolean(recruitingId)}
                                     >
-                                        {recruitingId === player.id ? 'Hozzáadás...' : 'Toborzás'}
+                                        {recruitingId === player.id ? 'Meghívás...' : 'Meghívás'}
                                     </button>
                                 )}
                             </div>

@@ -145,6 +145,115 @@
     cursor: not-allowed;
 }
 
+.request-section {
+    margin-bottom: 2rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid #D8C4B6;
+}
+
+.request-section:last-child {
+    border-bottom: none;
+}
+
+.request-section h3 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    color: #213555;
+    font-size: 1.1rem;
+}
+
+.section-desc {
+    font-size: 0.85rem;
+    color: #3E5879;
+    margin-bottom: 1rem;
+}
+
+.request-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    background: #F5EFE7;
+    border: 1px solid #E0D5CD;
+    border-radius: 8px;
+    margin-bottom: 0.75rem;
+}
+
+.request-info {
+    flex: 1;
+}
+
+.team-name,
+.player-name {
+    margin: 0;
+    font-weight: 600;
+    color: #213555;
+    font-size: 0.95rem;
+}
+
+.league-name,
+.player-email {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.85rem;
+    color: #3E5879;
+}
+
+.request-status {
+    margin: 0;
+    padding: 0.4rem 0.75rem;
+    background: #FFF3E0;
+    color: #E65100;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.request-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-left: 1rem;
+}
+
+.btn-accept,
+.btn-reject {
+    padding: 0.4rem 0.75rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: transform 120ms ease, box-shadow 120ms ease, background-color 120ms ease;
+}
+
+.btn-accept {
+    background: #4CAF50;
+    color: #ffffff;
+}
+
+.btn-accept:hover:not(:disabled) {
+    background: #45a049;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.2);
+}
+
+.btn-reject {
+    background: #f44336;
+    color: #ffffff;
+}
+
+.btn-reject:hover:not(:disabled) {
+    background: #da190b;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(244, 67, 54, 0.2);
+}
+
+.btn-accept:disabled,
+.btn-reject:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
 .muted {
     color: #3E5879;
 }
@@ -152,5 +261,21 @@
 @media (max-width: 640px) {
     .button-row {
         flex-direction: column;
+    }
+
+    .request-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .request-actions {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .btn-accept,
+    .btn-reject {
+        flex: 1;
     }
 }

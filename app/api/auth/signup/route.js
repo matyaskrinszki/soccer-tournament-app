@@ -1,13 +1,14 @@
-import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { getDb, initializeDb } from '../../../../lib/db';
-import { validateAuth } from '../../../../lib/validation';
+import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { getDb, initializeDb } from "../../../../lib/db";
+import { validateAuth } from "../../../../lib/validation";
 
 initializeDb();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || "mysupersecretkey";
 
+// -- Ask Copilot why is this function async and why do we need to return a Promise in this case --
 export async function POST(request) {
     try {
         const { email, password } = await request.json();
@@ -15,18 +16,12 @@ export async function POST(request) {
         // Validate input using shared utility
         const emailError = validateAuth.email(email);
         if (emailError) {
-            return NextResponse.json(
-                { error: emailError },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: emailError }, { status: 400 });
         }
 
         const passwordError = validateAuth.password(password);
         if (passwordError) {
-            return NextResponse.json(
-                { error: passwordError },
-                { status: 400 }
-            );
+            return NextResponse.json({ error: passwordError }, { status: 400 });
         }
 
         // Hash password
@@ -37,67 +32,84 @@ export async function POST(request) {
 
         // Check if player exists
         return new Promise((resolve) => {
-            db.get('SELECT id FROM players WHERE email = ?', [email], (err, row) => {
-                if (err) {
-                    db.close();
-                    resolve(
-                        NextResponse.json(
-                            { error: 'Adatbázis hiba történt' },
-                            { status: 500 }
-                        )
-                    );
-                    return;
-                }
-
-                if (row) {
-                    db.close();
-                    resolve(
-                        NextResponse.json(
-                            { error: 'Ez az email cím már regisztrálva van' },
-                            { status: 400 }
-                        )
-                    );
-                    return;
-                }
-
-                // Create player
-                db.run(
-                    'INSERT INTO players (email, password, name, team_id) VALUES (?, ?, ?, NULL)',
-                    [email, hashedPassword, email.split('@')[0]],
-                    function (err) {
-                        if (err) {
-                            db.close();
-                            resolve(
-                                NextResponse.json(
-                                    { error: 'Nem sikerült létrehozni a játékost' },
-                                    { status: 500 }
-                                )
-                            );
-                            return;
-                        }
-
-                        // Create JWT token with playerId
-                        const token = jwt.sign(
-                            { playerId: this.lastID, userId: this.lastID, email },
-                            JWT_SECRET,
-                            { expiresIn: '7d' }
-                        );
-
+            db.get(
+                "SELECT id FROM players WHERE email = ?",
+                [email],
+                (err, row) => {
+                    if (err) {
                         db.close();
                         resolve(
                             NextResponse.json(
-                                { success: true, token, email, playerId: this.lastID },
-                                { status: 201 }
-                            )
+                                { error: "Adatbázis hiba történt" },
+                                { status: 500 },
+                            ),
                         );
+                        return;
                     }
-                );
-            });
+
+                    if (row) {
+                        db.close();
+                        resolve(
+                            NextResponse.json(
+                                {
+                                    error: "Ez az email cím már regisztrálva van",
+                                },
+                                { status: 400 },
+                            ),
+                        );
+                        return;
+                    }
+
+                    // Create player
+                    db.run(
+                        "INSERT INTO players (email, password, name, team_id) VALUES (?, ?, ?, NULL)",
+                        [email, hashedPassword, email.split("@")[0]], // -- Ask Copilot to explain why we use the part before @ as the name and not faker
+                        function (err) {
+                            if (err) {
+                                db.close();
+                                resolve(
+                                    NextResponse.json(
+                                        {
+                                            error: "Nem sikerült létrehozni a játékost",
+                                        },
+                                        { status: 500 },
+                                    ),
+                                );
+                                return;
+                            }
+
+                            // Create JWT token with playerId
+                            const token = jwt.sign(
+                                {
+                                    playerId: this.lastID,
+                                    userId: this.lastID,
+                                    email,
+                                },
+                                JWT_SECRET,
+                                { expiresIn: "7d" },
+                            );
+
+                            db.close();
+                            resolve(
+                                NextResponse.json(
+                                    {
+                                        success: true,
+                                        token,
+                                        email,
+                                        playerId: this.lastID,
+                                    },
+                                    { status: 201 },
+                                ),
+                            );
+                        },
+                    );
+                },
+            );
         });
     } catch (err) {
         return NextResponse.json(
-            { error: 'Szerverhiba történt' },
-            { status: 500 }
+            { error: "Szerverhiba történt" },
+            { status: 500 },
         );
     }
 }
