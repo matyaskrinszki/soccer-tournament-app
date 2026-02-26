@@ -67,10 +67,9 @@ export default function Header({ isLoggedIn, userEmail, setIsLoggedIn, onOpenAut
                 </Link>
                 <nav className="nav">
                     <a href="/tabella">Tabella</a>
-                    <a href="#results">Eredmények</a>
-                    <a href="#news">Hírek</a>
                     <Link href="/players">Játékosok</Link>
                     <Link href="/teams">Csapatok</Link>
+                    <Link href="/statistics">Statisztikák</Link>
                     {isLoggedIn ? (
                         <>
                             <button

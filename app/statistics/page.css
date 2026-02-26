@@ -1,0 +1,320 @@
+.statistics-page {
+    min-height: 100vh;
+    background: linear-gradient(180deg, #F5EFE7 0%, #F5EFE7 60%);
+}
+
+.statistics-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.statistics-header {
+    margin-bottom: 1rem;
+}
+
+.statistics-header .eyebrow {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #3E5879;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.statistics-header h1 {
+    margin: 0 0 0.5rem 0;
+    color: #213555;
+    font-size: 2.5rem;
+    font-weight: 700;
+}
+
+.statistics-header .subhead {
+    margin: 0;
+    color: #3E5879;
+    font-size: 1rem;
+}
+
+.stats-card {
+    background: #ffffff;
+    border: 1px solid #D8C4B6;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 8px 20px rgba(33, 53, 85, 0.05);
+}
+
+.stats-card.error {
+    border-color: #d32f2f;
+    color: #d32f2f;
+    background: #ffebee;
+}
+
+.stats-card h2 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    color: #213555;
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.stat-box {
+    background: linear-gradient(135deg, #F5EFE7 0%, #E8DDD4 100%);
+    border: 1px solid #D8C4B6;
+    border-radius: 8px;
+    padding: 1.25rem;
+    text-align: center;
+}
+
+.stat-label {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #3E5879;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.stat-value {
+    margin: 0.5rem 0 0 0;
+    font-size: 2rem;
+    font-weight: 700;
+    color: #213555;
+}
+
+.table-wrapper {
+    overflow-x: auto;
+}
+
+.stats-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+}
+
+.stats-table thead {
+    background-color: #F5EFE7;
+    border-bottom: 2px solid #D8C4B6;
+}
+
+.stats-table th {
+    padding: 0.75rem;
+    text-align: left;
+    color: #213555;
+    font-weight: 600;
+}
+
+.stats-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid #E8DDD4;
+    color: #213555;
+}
+
+.stats-table tbody tr:hover {
+    background-color: #FAF8F5;
+}
+
+.stats-table .rank {
+    font-weight: 600;
+    color: #3E5879;
+}
+
+.stats-table .goals {
+    font-weight: 600;
+    color: #213555;
+}
+
+.stats-table .points {
+    font-weight: 700;
+    color: #213555;
+}
+
+.stats-table .league-cell {
+    font-size: 0.9rem;
+    color: #3E5879;
+}
+
+.stats-table .league-name {
+    font-weight: 600;
+}
+
+.player-link,
+.team-link {
+    color: #3E5879;
+    text-decoration: none;
+    font-weight: 600;
+    transition: color 150ms ease;
+}
+
+.player-link:hover,
+.team-link:hover {
+    color: #213555;
+    text-decoration: underline;
+}
+
+.league-scorers {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+.league-column h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: #213555;
+    font-size: 1.1rem;
+    border-bottom: 2px solid #D8C4B6;
+    padding-bottom: 0.5rem;
+}
+
+.stats-table.compact {
+    font-size: 0.9rem;
+}
+
+.stats-table.compact th,
+.stats-table.compact td {
+    padding: 0.5rem;
+}
+
+.matches-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.match-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    background: #FAF8F5;
+    border: 1px solid #E8DDD4;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 150ms ease;
+}
+
+.match-item:hover {
+    background-color: #F5EFE7;
+    border-color: #D8C4B6;
+    transform: translateX(4px);
+    box-shadow: 0 4px 12px rgba(33, 53, 85, 0.08);
+}
+
+.match-teams {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1;
+}
+
+.team-name {
+    margin: 0;
+    font-weight: 600;
+    color: #213555;
+    min-width: 150px;
+}
+
+.score {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #213555;
+    min-width: 80px;
+    text-align: center;
+}
+
+.match-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-left: auto;
+}
+
+.total-goals {
+    background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);
+    color: #2E7D32;
+    padding: 0.4rem 0.75rem;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.league {
+    color: #3E5879;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+@media (max-width: 768px) {
+    .statistics-header h1 {
+        font-size: 1.75rem;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .stats-table {
+        font-size: 0.8rem;
+    }
+
+    .stats-table th,
+    .stats-table td {
+        padding: 0.5rem;
+    }
+
+    .match-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .match-teams {
+        width: 100%;
+        margin-bottom: 0.75rem;
+    }
+
+    .match-info {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .league-scorers {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .statistics-container {
+        padding: 1rem 1rem 2rem;
+    }
+
+    .statistics-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .statistics-header .subhead {
+        font-size: 0.9rem;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stats-table {
+        font-size: 0.75rem;
+    }
+
+    .stats-table th,
+    .stats-table td {
+        padding: 0.4rem;
+    }
+}
