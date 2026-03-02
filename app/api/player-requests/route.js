@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import { getDb, initializeDb } from "../../../lib/db";
+import { requireAuth, canAccessPlayerResource } from "../../../lib/auth";
 
 initializeDb();
 
 export async function GET(request) {
+    // Require authentication
+    const user = requireAuth(request);
+    if (user instanceof NextResponse) {
+        return user;
+    }
+
     const { searchParams } = new URL(request.url);
     const playerId = searchParams.get("playerId");
 
@@ -11,6 +18,14 @@ export async function GET(request) {
         return NextResponse.json(
             { error: "Játékos ID hiányzik" },
             { status: 400 },
+        );
+    }
+
+    // Verify user can access this player's data
+    if (!canAccessPlayerResource(user, parseInt(playerId))) {
+        return NextResponse.json(
+            { error: "Nincs jogosultságod ehhez az adathoz" },
+            { status: 403 },
         );
     }
 

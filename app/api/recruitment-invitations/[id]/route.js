@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import { getDb, initializeDb } from "../../../../lib/db";
+import { requireAuth, canAccessPlayerResource } from "../../../../lib/auth";
 
 initializeDb();
 
 export async function POST(request, context) {
+    // Require authentication
+    const user = requireAuth(request);
+    if (user instanceof NextResponse) {
+        return user;
+    }
+
     let invitationId = context?.params?.id;
 
     if (!invitationId) {
@@ -37,18 +44,11 @@ export async function POST(request, context) {
         );
     }
 
-    const { action, playerId } = payload || {};
+    const { action } = payload || {};
 
     if (!action || !["accept", "reject"].includes(action)) {
         return NextResponse.json(
             { error: "Érvénytelen akció" },
-            { status: 400 },
-        );
-    }
-
-    if (!playerId) {
-        return NextResponse.json(
-            { error: "Játékos ID hiányzik" },
             { status: 400 },
         );
     }
@@ -83,8 +83,8 @@ export async function POST(request, context) {
                     return;
                 }
 
-                // Verify the user is the player being invited
-                if (Number(row.player_id) !== Number(playerId)) {
+                // Verify the user is the player being invited or admin
+                if (!canAccessPlayerResource(user, row.player_id)) {
                     db.close();
                     resolve(
                         NextResponse.json(

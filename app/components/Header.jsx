@@ -18,6 +18,7 @@ export default function Header({ isLoggedIn, userEmail, setIsLoggedIn, onOpenAut
         localStorage.removeItem('token');
         localStorage.removeItem('email');
         localStorage.removeItem('playerId');
+        localStorage.removeItem('role');
         setIsLoggedIn(false);
     };
 

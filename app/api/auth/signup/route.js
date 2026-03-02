@@ -78,12 +78,13 @@ export async function POST(request) {
                                 return;
                             }
 
-                            // Create JWT token with playerId
+                            // Create JWT token with playerId and role (new users are 'Player' by default)
                             const token = jwt.sign(
                                 {
                                     playerId: this.lastID,
                                     userId: this.lastID,
                                     email,
+                                    role: "Player",
                                 },
                                 JWT_SECRET,
                                 { expiresIn: "7d" },
@@ -97,6 +98,7 @@ export async function POST(request) {
                                         token,
                                         email,
                                         playerId: this.lastID,
+                                        role: "Player",
                                     },
                                     { status: 201 },
                                 ),

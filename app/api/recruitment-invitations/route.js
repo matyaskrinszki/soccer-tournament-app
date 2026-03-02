@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import { getDb, initializeDb } from "../../../lib/db";
+import { requireCaptainOrAdmin, isCaptainOfTeam } from "../../../lib/auth";
 
 initializeDb();
 
 export async function POST(request) {
+    // Require captain or admin role
+    const user = requireCaptainOrAdmin(request);
+    if (user instanceof NextResponse) {
+        return user;
+    }
+
     let payload;
     try {
         payload = await request.json();
@@ -14,18 +21,33 @@ export async function POST(request) {
         );
     }
 
-    const { captainId, playerId, teamId } = payload || {};
+    const { playerId, teamId } = payload || {};
 
-    if (!captainId || !playerId || !teamId) {
+    if (!playerId || !teamId) {
         return NextResponse.json({ error: "Hiányzó adatok" }, { status: 400 });
     }
 
     const db = getDb();
 
-    return new Promise((resolve) => {
-        // Verify captain and team
+    return new Promise(async (resolve) => {
+        // Verify captain owns this team (admins bypass this check)
+        if (user.role !== "Admin") {
+            const isCaptain = await isCaptainOfTeam(user, teamId);
+            if (!isCaptain) {
+                resolve(
+                    NextResponse.json(
+                        { error: "Csak a csapatkapitány küldhet meghívót" },
+                        { status: 403 },
+                    ),
+                );
+                return;
+            }
+        }
+
+        // Verify team and check if player exists and is not already in a team
+        // Verify team and check if player exists and is not already in a team
         db.get(
-            "SELECT id, captain_player_id FROM teams WHERE id = ?",
+            "SELECT id FROM teams WHERE id = ?",
             [teamId],
             (teamErr, teamRow) => {
                 if (teamErr) {
@@ -45,17 +67,6 @@ export async function POST(request) {
                         NextResponse.json(
                             { error: "A csapat nem található" },
                             { status: 404 },
-                        ),
-                    );
-                    return;
-                }
-
-                if (Number(teamRow.captain_player_id) !== Number(captainId)) {
-                    db.close();
-                    resolve(
-                        NextResponse.json(
-                            { error: "Csak a csapatkapitány küldhet meghívót" },
-                            { status: 403 },
                         ),
                     );
                     return;

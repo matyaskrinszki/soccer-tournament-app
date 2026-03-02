@@ -1,17 +1,24 @@
-import { NextResponse } from 'next/server';
-import bcrypt from 'bcryptjs';
-import { getDb, initializeDb } from '../../../../lib/db';
-import { validateAuth } from '../../../../lib/validation';
+import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
+import { getDb, initializeDb } from "../../../../lib/db";
+import { validateAuth } from "../../../../lib/validation";
+import { requireAuth, canAccessPlayerResource } from "../../../../lib/auth";
 
 initializeDb();
 
 export async function GET(request, context) {
     const idFromParams = context?.params?.id;
-    const idFromPath = new URL(request.url).pathname.split('/').filter(Boolean).pop();
+    const idFromPath = new URL(request.url).pathname
+        .split("/")
+        .filter(Boolean)
+        .pop();
     const id = idFromParams ?? idFromPath;
 
     if (!id) {
-        return NextResponse.json({ error: 'A játékos azonosító hiányzik' }, { status: 400 });
+        return NextResponse.json(
+            { error: "A játékos azonosító hiányzik" },
+            { status: 400 },
+        );
     }
 
     return new Promise((resolve) => {
@@ -26,13 +33,23 @@ export async function GET(request, context) {
             (err, row) => {
                 if (err) {
                     db.close();
-                    resolve(NextResponse.json({ error: 'Hiba történt a játékos lekérdezésekor' }, { status: 500 }));
+                    resolve(
+                        NextResponse.json(
+                            { error: "Hiba történt a játékos lekérdezésekor" },
+                            { status: 500 },
+                        ),
+                    );
                     return;
                 }
 
                 if (!row) {
                     db.close();
-                    resolve(NextResponse.json({ error: 'A játékos nem található' }, { status: 404 }));
+                    resolve(
+                        NextResponse.json(
+                            { error: "A játékos nem található" },
+                            { status: 404 },
+                        ),
+                    );
                     return;
                 }
 
@@ -42,7 +59,14 @@ export async function GET(request, context) {
                     (goalErr, goalRow) => {
                         db.close();
                         if (goalErr) {
-                            resolve(NextResponse.json({ error: 'Hiba történt a gólok lekérdezésekor' }, { status: 500 }));
+                            resolve(
+                                NextResponse.json(
+                                    {
+                                        error: "Hiba történt a gólok lekérdezésekor",
+                                    },
+                                    { status: 500 },
+                                ),
+                            );
                             return;
                         }
 
@@ -53,44 +77,72 @@ export async function GET(request, context) {
                                         id: row.id,
                                         name: row.name,
                                         email: row.email,
-                                        team: row.teamId ? {
-                                            id: row.teamId,
-                                            name: row.teamName,
-                                            leagueName: row.leagueName,
-                                        } : null,
+                                        team: row.teamId
+                                            ? {
+                                                  id: row.teamId,
+                                                  name: row.teamName,
+                                                  leagueName: row.leagueName,
+                                              }
+                                            : null,
                                         goals: goalRow?.goals ?? 0,
                                     },
                                 },
-                                { status: 200 }
-                            )
+                                { status: 200 },
+                            ),
                         );
-                    }
+                    },
                 );
-            }
+            },
         );
     });
 }
 
 export async function PUT(request, context) {
+    // Require authentication
+    const user = requireAuth(request);
+    if (user instanceof NextResponse) {
+        return user;
+    }
+
     const idFromParams = context?.params?.id;
-    const idFromPath = new URL(request.url).pathname.split('/').filter(Boolean).pop();
+    const idFromPath = new URL(request.url).pathname
+        .split("/")
+        .filter(Boolean)
+        .pop();
     const id = idFromParams ?? idFromPath;
 
     if (!id) {
-        return NextResponse.json({ error: 'A játékos azonosító hiányzik' }, { status: 400 });
+        return NextResponse.json(
+            { error: "A játékos azonosító hiányzik" },
+            { status: 400 },
+        );
+    }
+
+    // Verify user can access this player resource
+    if (!canAccessPlayerResource(user, parseInt(id))) {
+        return NextResponse.json(
+            { error: "Csak a saját profilodat frissítheted" },
+            { status: 403 },
+        );
     }
 
     let payload;
     try {
         payload = await request.json();
     } catch (err) {
-        return NextResponse.json({ error: 'Érvénytelen kérés' }, { status: 400 });
+        return NextResponse.json(
+            { error: "Érvénytelen kérés" },
+            { status: 400 },
+        );
     }
 
     const { email, password } = payload || {};
 
     if (!email && !password) {
-        return NextResponse.json({ error: 'Nincs frissítendő adat' }, { status: 400 });
+        return NextResponse.json(
+            { error: "Nincs frissítendő adat" },
+            { status: 400 },
+        );
     }
 
     if (email) {
@@ -110,70 +162,127 @@ export async function PUT(request, context) {
     const db = getDb();
 
     return new Promise((resolve) => {
-        db.get('SELECT id, email FROM players WHERE id = ?', [id], async (err, row) => {
-            if (err) {
-                db.close();
-                resolve(NextResponse.json({ error: 'Adatbázis hiba történt' }, { status: 500 }));
-                return;
-            }
-
-            if (!row) {
-                db.close();
-                resolve(NextResponse.json({ error: 'A játékos nem található' }, { status: 404 }));
-                return;
-            }
-
-            const emailToUpdate = email?.trim();
-            const emailChanged = emailToUpdate && emailToUpdate !== row.email;
-
-            const updatePlayer = async () => {
-                let hashedPassword = null;
-                if (password) {
-                    hashedPassword = await bcrypt.hash(password, 10);
+        db.get(
+            "SELECT id, email FROM players WHERE id = ?",
+            [id],
+            async (err, row) => {
+                if (err) {
+                    db.close();
+                    resolve(
+                        NextResponse.json(
+                            { error: "Adatbázis hiba történt" },
+                            { status: 500 },
+                        ),
+                    );
+                    return;
                 }
 
-                db.run(
-                    'UPDATE players SET email = COALESCE(?, email), password = COALESCE(?, password) WHERE id = ?',
-                    [emailToUpdate || null, hashedPassword || null, id],
-                    (updateErr) => {
-                        if (updateErr) {
-                            db.close();
-                            resolve(NextResponse.json({ error: 'Nem sikerült frissíteni az adatokat' }, { status: 500 }));
-                            return;
-                        }
+                if (!row) {
+                    db.close();
+                    resolve(
+                        NextResponse.json(
+                            { error: "A játékos nem található" },
+                            { status: 404 },
+                        ),
+                    );
+                    return;
+                }
 
-                        db.get('SELECT id, email FROM players WHERE id = ?', [id], (fetchErr, updatedRow) => {
-                            db.close();
-                            if (fetchErr) {
-                                resolve(NextResponse.json({ error: 'Nem sikerült lekérdezni a frissített adatokat' }, { status: 500 }));
+                const emailToUpdate = email?.trim();
+                const emailChanged =
+                    emailToUpdate && emailToUpdate !== row.email;
+
+                const updatePlayer = async () => {
+                    let hashedPassword = null;
+                    if (password) {
+                        hashedPassword = await bcrypt.hash(password, 10);
+                    }
+
+                    db.run(
+                        "UPDATE players SET email = COALESCE(?, email), password = COALESCE(?, password) WHERE id = ?",
+                        [emailToUpdate || null, hashedPassword || null, id],
+                        (updateErr) => {
+                            if (updateErr) {
+                                db.close();
+                                resolve(
+                                    NextResponse.json(
+                                        {
+                                            error: "Nem sikerült frissíteni az adatokat",
+                                        },
+                                        { status: 500 },
+                                    ),
+                                );
                                 return;
                             }
 
-                            resolve(NextResponse.json({ success: true, player: updatedRow }, { status: 200 }));
-                        });
-                    }
-                );
-            };
+                            db.get(
+                                "SELECT id, email FROM players WHERE id = ?",
+                                [id],
+                                (fetchErr, updatedRow) => {
+                                    db.close();
+                                    if (fetchErr) {
+                                        resolve(
+                                            NextResponse.json(
+                                                {
+                                                    error: "Nem sikerült lekérdezni a frissített adatokat",
+                                                },
+                                                { status: 500 },
+                                            ),
+                                        );
+                                        return;
+                                    }
 
-            if (emailChanged) {
-                db.get('SELECT id FROM players WHERE email = ? AND id != ?', [emailToUpdate, id], (emailErr, emailRow) => {
-                    if (emailErr) {
-                        db.close();
-                        resolve(NextResponse.json({ error: 'Adatbázis hiba történt' }, { status: 500 }));
-                        return;
-                    }
+                                    resolve(
+                                        NextResponse.json(
+                                            {
+                                                success: true,
+                                                player: updatedRow,
+                                            },
+                                            { status: 200 },
+                                        ),
+                                    );
+                                },
+                            );
+                        },
+                    );
+                };
 
-                    if (emailRow) {
-                        db.close();
-                        resolve(NextResponse.json({ error: 'Ez az email cím már foglalt' }, { status: 400 }));
-                        return;
-                    }
+                if (emailChanged) {
+                    db.get(
+                        "SELECT id FROM players WHERE email = ? AND id != ?",
+                        [emailToUpdate, id],
+                        (emailErr, emailRow) => {
+                            if (emailErr) {
+                                db.close();
+                                resolve(
+                                    NextResponse.json(
+                                        { error: "Adatbázis hiba történt" },
+                                        { status: 500 },
+                                    ),
+                                );
+                                return;
+                            }
 
+                            if (emailRow) {
+                                db.close();
+                                resolve(
+                                    NextResponse.json(
+                                        {
+                                            error: "Ez az email cím már foglalt",
+                                        },
+                                        { status: 400 },
+                                    ),
+                                );
+                                return;
+                            }
+
+                            updatePlayer();
+                        },
+                    );
+                } else {
                     updatePlayer();
-                });
-            } else {
-                updatePlayer();
-            }
-        });
+                }
+            },
+        );
     });
 }

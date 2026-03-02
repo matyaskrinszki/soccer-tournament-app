@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import { getDb, initializeDb } from "../../../../lib/db";
+import { requireCaptainOrAdmin, isCaptainOfTeam } from "../../../../lib/auth";
 
 initializeDb();
 
 export async function POST(request, context) {
+    // Require captain or admin role
+    const user = requireCaptainOrAdmin(request);
+    if (user instanceof NextResponse) {
+        return user;
+    }
+
     let requestId = context?.params?.id;
 
     if (!requestId) {
@@ -37,18 +44,11 @@ export async function POST(request, context) {
         );
     }
 
-    const { action, captainId } = payload || {};
+    const { action } = payload || {};
 
     if (!action || !["accept", "reject"].includes(action)) {
         return NextResponse.json(
             { error: "Érvénytelen akció" },
-            { status: 400 },
-        );
-    }
-
-    if (!captainId) {
-        return NextResponse.json(
-            { error: "Kapitány ID hiányzik" },
             { status: 400 },
         );
     }
@@ -86,18 +86,22 @@ export async function POST(request, context) {
                     return;
                 }
 
-                // Verify the user is the team captain
-                if (Number(row.captain_player_id) !== Number(captainId)) {
-                    db.close();
-                    resolve(
-                        NextResponse.json(
-                            {
-                                error: "Csak a csapatkapitány kezelheti a kéréseket",
-                            },
-                            { status: 403 },
-                        ),
-                    );
-                    return;
+                // Verify the user is the team captain (admins bypass this check)
+                if (user.role !== "Admin") {
+                    if (
+                        Number(row.captain_player_id) !== Number(user.playerId)
+                    ) {
+                        db.close();
+                        resolve(
+                            NextResponse.json(
+                                {
+                                    error: "Csak a csapatkapitány kezelheti a kéréseket",
+                                },
+                                { status: 403 },
+                            ),
+                        );
+                        return;
+                    }
                 }
 
                 if (row.status !== "pending") {

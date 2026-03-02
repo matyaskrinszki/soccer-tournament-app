@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 import { getDb, initializeDb } from "../../../lib/db";
+import { requireAuth } from "../../../lib/auth";
 
 initializeDb();
 
 export async function POST(request) {
+    // Require authentication
+    const user = requireAuth(request);
+    if (user instanceof NextResponse) {
+        return user;
+    }
+
     let payload;
     try {
         payload = await request.json();
@@ -14,11 +21,13 @@ export async function POST(request) {
         );
     }
 
-    const { playerId, teamId } = payload || {};
+    const { teamId } = payload || {};
 
-    if (!playerId || !teamId) {
+    if (!teamId) {
         return NextResponse.json({ error: "Hiányzó adatok" }, { status: 400 });
     }
+
+    const playerId = user.playerId;
 
     const db = getDb();
 

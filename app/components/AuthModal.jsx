@@ -65,6 +65,9 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
             if (data.playerId) {
                 localStorage.setItem('playerId', String(data.playerId));
             }
+            if (data.role) {
+                localStorage.setItem('role', data.role);
+            }
             onSuccess(data.email, data.token);
         } catch (err) {
             setError('Hálózati hiba történt. Kérjük, próbáld újra.');

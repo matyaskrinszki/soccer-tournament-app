@@ -29,7 +29,7 @@ export async function POST(request) {
         // -- Ask Copilot what is a Promise and how to use it in this case --
         return new Promise((resolve) => {
             db.get(
-                "SELECT id, password FROM players WHERE email = ?",
+                "SELECT id, password, role FROM players WHERE email = ?",
                 [email],
                 async (err, row) => {
                     if (err) {
@@ -71,7 +71,12 @@ export async function POST(request) {
                     }
 
                     const token = jwt.sign(
-                        { playerId: row.id, userId: row.id, email },
+                        {
+                            playerId: row.id,
+                            userId: row.id,
+                            email,
+                            role: row.role,
+                        },
                         JWT_SECRET,
                         { expiresIn: "7d" },
                     );
@@ -79,7 +84,13 @@ export async function POST(request) {
                     db.close();
                     resolve(
                         NextResponse.json(
-                            { success: true, token, email, playerId: row.id },
+                            {
+                                success: true,
+                                token,
+                                email,
+                                playerId: row.id,
+                                role: row.role,
+                            },
                             { status: 200 },
                         ),
                     );

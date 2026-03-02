@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import Header from '../components/Header';
 import AuthModal from '../components/AuthModal';
+import { getAuthHeaders } from '../../lib/client-auth';
 
 export default function PlayersBrowsePage() {
     const [players, setPlayers] = useState([]);
@@ -142,9 +143,8 @@ export default function PlayersBrowsePage() {
         try {
             const res = await fetch(`/api/recruitment-invitations`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({
-                    captainId: currentPlayerId,
                     playerId: player.id,
                     teamId: captainTeam.id,
                 }),

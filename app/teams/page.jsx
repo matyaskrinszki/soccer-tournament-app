@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import Header from '../components/Header';
 import AuthModal from '../components/AuthModal';
+import { getAuthHeaders } from '../../lib/client-auth';
 
 export default function TeamsBrowsePage() {
     const [teams, setTeams] = useState([]);
@@ -123,10 +124,8 @@ export default function TeamsBrowsePage() {
         try {
             const res = await fetch(`/api/join-requests`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ playerId, teamId }),
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ teamId }),
             });
 
             if (!res.ok) {

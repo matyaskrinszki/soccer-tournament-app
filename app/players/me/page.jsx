@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import Header from '../../components/Header';
 import AuthModal from '../../components/AuthModal';
+import { getAuthHeaders } from '../../../lib/client-auth';
 
 export default function PlayerMePage() {
     const [isLoggedIn, setIsLoggedIn] = useState(() => {
@@ -143,7 +144,9 @@ export default function PlayerMePage() {
         const fetchRequests = async () => {
             try {
                 setRequestsLoading(true);
-                const res = await fetch(`/api/player-requests?playerId=${playerId}`);
+                const res = await fetch(`/api/player-requests?playerId=${playerId}`, {
+                    headers: getAuthHeaders(),
+                });
                 const data = await res.json();
                 if (res.ok) {
                     setJoinRequests(data.joinRequests || []);
@@ -180,9 +183,7 @@ export default function PlayerMePage() {
 
             const res = await fetch(`/api/players/${playerId}`, {
                 method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: getAuthHeaders(),
                 body: JSON.stringify(payload),
             });
             const data = await res.json();
@@ -224,13 +225,10 @@ export default function PlayerMePage() {
         try {
             const res = await fetch('/api/teams', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({
                     name: teamName.trim(),
                     leagueId,
-                    playerId,
                 }),
             });
             const data = await res.json();
@@ -255,10 +253,8 @@ export default function PlayerMePage() {
         try {
             const res = await fetch(`/api/join-requests/${requestId}`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ action, captainId: playerId }),
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ action }),
             });
             const data = await res.json();
             if (!res.ok) {
@@ -266,7 +262,9 @@ export default function PlayerMePage() {
             }
 
             // Refresh requests
-            const requestRes = await fetch(`/api/player-requests?playerId=${playerId}`);
+            const requestRes = await fetch(`/api/player-requests?playerId=${playerId}`, {
+                headers: getAuthHeaders(),
+            });
             const requestData = await requestRes.json();
             if (requestRes.ok) {
                 setJoinRequests(requestData.joinRequests || []);
@@ -287,10 +285,8 @@ export default function PlayerMePage() {
         try {
             const res = await fetch(`/api/recruitment-invitations/${invitationId}`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ action, playerId }),
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ action }),
             });
             const data = await res.json();
             if (!res.ok) {
@@ -298,7 +294,9 @@ export default function PlayerMePage() {
             }
 
             // Refresh requests
-            const requestRes = await fetch(`/api/player-requests?playerId=${playerId}`);
+            const requestRes = await fetch(`/api/player-requests?playerId=${playerId}`, {
+                headers: getAuthHeaders(),
+            });
             const requestData = await requestRes.json();
             if (requestRes.ok) {
                 setJoinRequests(requestData.joinRequests || []);
