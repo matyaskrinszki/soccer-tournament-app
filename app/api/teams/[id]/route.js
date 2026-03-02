@@ -1,16 +1,22 @@
-import { NextResponse } from 'next/server';
-import { getDb, initializeDb } from '../../../../lib/db';
+import { NextResponse } from "next/server";
+import { getDb, initializeDb } from "../../../../lib/db";
 
 initializeDb();
 
 export async function GET(request, context) {
     // Derive id from params first, then fall back to the URL path
     const idFromParams = context?.params?.id;
-    const idFromPath = new URL(request.url).pathname.split('/').filter(Boolean).pop();
+    const idFromPath = new URL(request.url).pathname
+        .split("/")
+        .filter(Boolean)
+        .pop();
     const id = idFromParams ?? idFromPath;
 
     if (!id) {
-        return NextResponse.json({ error: 'A csapat azonosító hiányzik' }, { status: 400 });
+        return NextResponse.json(
+            { error: "A csapat azonosító hiányzik" },
+            { status: 400 },
+        );
     }
 
     return new Promise((resolve) => {
@@ -20,6 +26,7 @@ export async function GET(request, context) {
             `SELECT 
                 t.id,
                 t.name,
+                t.captain_player_id as captainPlayerId,
                 t.matches,
                 t.wins,
                 t.draws,
@@ -35,13 +42,23 @@ export async function GET(request, context) {
             (err, row) => {
                 if (err) {
                     db.close();
-                    resolve(NextResponse.json({ error: 'Hiba történt a csapat lekérdezésekor' }, { status: 500 }));
+                    resolve(
+                        NextResponse.json(
+                            { error: "Hiba történt a csapat lekérdezésekor" },
+                            { status: 500 },
+                        ),
+                    );
                     return;
                 }
 
                 if (!row) {
                     db.close();
-                    resolve(NextResponse.json({ error: 'A csapat nem található' }, { status: 404 }));
+                    resolve(
+                        NextResponse.json(
+                            { error: "A csapat nem található" },
+                            { status: 404 },
+                        ),
+                    );
                     return;
                 }
 
@@ -70,7 +87,14 @@ export async function GET(request, context) {
                     (matchErr, upcomingMatches) => {
                         if (matchErr) {
                             db.close();
-                            resolve(NextResponse.json({ error: 'Hiba történt a mérkőzések lekérdezésekor' }, { status: 500 }));
+                            resolve(
+                                NextResponse.json(
+                                    {
+                                        error: "Hiba történt a mérkőzések lekérdezésekor",
+                                    },
+                                    { status: 500 },
+                                ),
+                            );
                             return;
                         }
 
@@ -99,7 +123,14 @@ export async function GET(request, context) {
                             (finishedErr, finishedMatches) => {
                                 if (finishedErr) {
                                     db.close();
-                                    resolve(NextResponse.json({ error: 'Hiba történt az eredmények lekérdezésekor' }, { status: 500 }));
+                                    resolve(
+                                        NextResponse.json(
+                                            {
+                                                error: "Hiba történt az eredmények lekérdezésekor",
+                                            },
+                                            { status: 500 },
+                                        ),
+                                    );
                                     return;
                                 }
 
@@ -110,6 +141,8 @@ export async function GET(request, context) {
                                             team: {
                                                 id: row.id,
                                                 name: row.name,
+                                                captainPlayerId:
+                                                    row.captainPlayerId,
                                                 matches: row.matches,
                                                 wins: row.wins,
                                                 draws: row.draws,
@@ -121,17 +154,19 @@ export async function GET(request, context) {
                                                     country: row.leagueCountry,
                                                 },
                                             },
-                                            upcomingMatches: upcomingMatches || [],
-                                            previousMatches: finishedMatches || []
+                                            upcomingMatches:
+                                                upcomingMatches || [],
+                                            previousMatches:
+                                                finishedMatches || [],
                                         },
-                                        { status: 200 }
-                                    )
+                                        { status: 200 },
+                                    ),
                                 );
-                            }
+                            },
                         );
-                    }
+                    },
                 );
-            }
+            },
         );
     });
 }

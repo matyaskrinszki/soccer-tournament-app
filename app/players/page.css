@@ -116,3 +116,11 @@
     opacity: 0.7;
     cursor: not-allowed;
 }
+
+.recruit-player-btn.success {
+    background: #28a745;
+}
+
+.recruit-player-btn.success:hover {
+    background: #28a745;
+}

@@ -16,6 +16,8 @@ export default function PlayersBrowsePage() {
     const [isCaptain, setIsCaptain] = useState(false);
     const [recruitingId, setRecruitingId] = useState(null);
     const [recruitError, setRecruitError] = useState('');
+    const [invitedPlayerIds, setInvitedPlayerIds] = useState([]);
+    const [successRecruitingId, setSuccessRecruitingId] = useState(null);
 
     const [isLoggedIn, setIsLoggedIn] = useState(() => {
         if (typeof window === 'undefined') return false;
@@ -135,6 +137,41 @@ export default function PlayersBrowsePage() {
         resolveCurrentPlayer();
     }, [isLoggedIn, userEmail]);
 
+    useEffect(() => {
+        const fetchInvitedPlayers = async () => {
+            if (!captainTeam || !isLoggedIn) {
+                setInvitedPlayerIds([]);
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/recruitment-invitations?teamId=${captainTeam.id}`, {
+                    headers: getAuthHeaders(),
+                });
+                const data = await res.json();
+                if (res.ok && data.invitedPlayerIds) {
+                    setInvitedPlayerIds(data.invitedPlayerIds);
+                } else {
+                    setInvitedPlayerIds([]);
+                }
+            } catch (err) {
+                setInvitedPlayerIds([]);
+            }
+        };
+
+        fetchInvitedPlayers();
+    }, [captainTeam, isLoggedIn]);
+
+    useEffect(() => {
+        if (successRecruitingId === null) return;
+
+        const timer = setTimeout(() => {
+            setSuccessRecruitingId(null);
+        }, 2000);
+
+        return () => clearTimeout(timer);
+    }, [successRecruitingId]);
+
     const handleRecruit = async (player) => {
         if (!captainTeam || !currentPlayerId || recruitingId) return;
         setRecruitError('');
@@ -154,7 +191,10 @@ export default function PlayersBrowsePage() {
                 throw new Error(data.error || 'Nem sikerült a meghívót elküldeni');
             }
 
-            alert('Meghívót sikeresen elküldtél a játékosnak!');
+            // Add player to invited list
+            setInvitedPlayerIds(prev => [...prev, player.id]);
+            // Show success state
+            setSuccessRecruitingId(player.id);
         } catch (err) {
             setRecruitError(err.message);
         } finally {
@@ -218,18 +258,18 @@ export default function PlayersBrowsePage() {
                                         )}
                                     </div>
                                 </Link>
-                                {isLoggedIn && isCaptain && !player.team && (
+                                {isLoggedIn && isCaptain && !player.team && (!invitedPlayerIds.includes(player.id) || successRecruitingId === player.id) && (
                                     <button
                                         type="button"
-                                        className="recruit-player-btn"
+                                        className={`recruit-player-btn${successRecruitingId === player.id ? ' success' : ''}`}
                                         onClick={(event) => {
                                             event.preventDefault();
                                             event.stopPropagation();
                                             handleRecruit(player);
                                         }}
-                                        disabled={Boolean(recruitingId)}
+                                        disabled={Boolean(recruitingId) || successRecruitingId === player.id}
                                     >
-                                        {recruitingId === player.id ? 'Meghívás...' : 'Meghívás'}
+                                        {successRecruitingId === player.id ? 'Sikeres' : (recruitingId === player.id ? 'Meghívás...' : 'Meghívás')}
                                     </button>
                                 )}
                             </div>

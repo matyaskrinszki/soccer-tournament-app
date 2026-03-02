@@ -4,9 +4,70 @@ import { requireCaptainOrAdmin, isCaptainOfTeam } from "../../../lib/auth";
 
 initializeDb();
 
+export async function GET(request) {
+    // Require captain or admin role
+    const user = await requireCaptainOrAdmin(request);
+    if (user instanceof NextResponse) {
+        return user;
+    }
+
+    const { searchParams } = new URL(request.url);
+    const teamId = searchParams.get("teamId");
+
+    if (!teamId) {
+        return NextResponse.json(
+            { error: "Team ID is required" },
+            { status: 400 },
+        );
+    }
+
+    const db = getDb();
+
+    return new Promise(async (resolve) => {
+        // Verify captain owns this team (admins bypass this check)
+        if (user.role !== "Admin") {
+            const isCaptain = await isCaptainOfTeam(user, Number(teamId));
+            if (!isCaptain) {
+                resolve(
+                    NextResponse.json(
+                        {
+                            error: "Csak a csapatkapitány lekérheti a meghívókat",
+                        },
+                        { status: 403 },
+                    ),
+                );
+                return;
+            }
+        }
+
+        // Fetch all pending invitations for this team
+        db.all(
+            "SELECT player_id FROM recruitment_invitations WHERE team_id = ? AND status = ?",
+            [teamId, "pending"],
+            (err, rows) => {
+                db.close();
+                if (err) {
+                    resolve(
+                        NextResponse.json(
+                            { error: "Adatbázis hiba történt" },
+                            { status: 500 },
+                        ),
+                    );
+                    return;
+                }
+
+                const invitedPlayerIds = rows.map((row) => row.player_id);
+                resolve(
+                    NextResponse.json({ invitedPlayerIds }, { status: 200 }),
+                );
+            },
+        );
+    });
+}
+
 export async function POST(request) {
     // Require captain or admin role
-    const user = requireCaptainOrAdmin(request);
+    const user = await requireCaptainOrAdmin(request);
     if (user instanceof NextResponse) {
         return user;
     }
@@ -112,7 +173,7 @@ export async function POST(request) {
                             return;
                         }
 
-                        // Check if an invitation already exists
+                        // Check if a pending invitation already exists
                         db.get(
                             "SELECT id, status FROM recruitment_invitations WHERE player_id = ? AND team_id = ?",
                             [playerId, teamId],
@@ -128,61 +189,87 @@ export async function POST(request) {
                                     return;
                                 }
 
-                                if (existingInvitation) {
+                                // Only block if there's a PENDING invitation
+                                if (
+                                    existingInvitation &&
+                                    existingInvitation.status === "pending"
+                                ) {
                                     db.close();
-                                    if (
-                                        existingInvitation.status === "pending"
-                                    ) {
-                                        resolve(
-                                            NextResponse.json(
-                                                {
-                                                    error: "Már van függőben lévő meghívó erre a játékosnak erre a csapatra",
-                                                },
-                                                { status: 400 },
-                                            ),
-                                        );
-                                    } else {
-                                        resolve(
-                                            NextResponse.json(
-                                                {
-                                                    error: "Már van meghívó erre a játékosnak erre a csapatra",
-                                                },
-                                                { status: 400 },
-                                            ),
-                                        );
-                                    }
+                                    resolve(
+                                        NextResponse.json(
+                                            {
+                                                error: "Már van függőben lévő meghívó erre a játékosnak erre a csapatra",
+                                            },
+                                            { status: 400 },
+                                        ),
+                                    );
                                     return;
                                 }
 
-                                // Create recruitment invitation
-                                db.run(
-                                    "INSERT INTO recruitment_invitations (player_id, team_id, status) VALUES (?, ?, ?)",
-                                    [playerId, teamId, "pending"],
-                                    function (insertErr) {
-                                        db.close();
-                                        if (insertErr) {
+                                // If invitation exists but is not pending, update it to pending
+                                // Otherwise, create a new invitation
+                                if (existingInvitation) {
+                                    db.run(
+                                        "UPDATE recruitment_invitations SET status = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?",
+                                        ["pending", existingInvitation.id],
+                                        function (updateErr) {
+                                            db.close();
+                                            if (updateErr) {
+                                                resolve(
+                                                    NextResponse.json(
+                                                        {
+                                                            error: "Nem sikerült a meghívót elküldeni",
+                                                        },
+                                                        { status: 500 },
+                                                    ),
+                                                );
+                                                return;
+                                            }
+
                                             resolve(
                                                 NextResponse.json(
                                                     {
-                                                        error: "Nem sikerült a meghívót elküldeni",
+                                                        success: true,
+                                                        invitationId:
+                                                            existingInvitation.id,
                                                     },
-                                                    { status: 500 },
+                                                    { status: 201 },
                                                 ),
                                             );
-                                            return;
-                                        }
+                                        },
+                                    );
+                                } else {
+                                    // Create new recruitment invitation
+                                    db.run(
+                                        "INSERT INTO recruitment_invitations (player_id, team_id, status) VALUES (?, ?, ?)",
+                                        [playerId, teamId, "pending"],
+                                        function (insertErr) {
+                                            db.close();
+                                            if (insertErr) {
+                                                resolve(
+                                                    NextResponse.json(
+                                                        {
+                                                            error: "Nem sikerült a meghívót elküldeni",
+                                                        },
+                                                        { status: 500 },
+                                                    ),
+                                                );
+                                                return;
+                                            }
 
-                                        resolve(
-                                            NextResponse.json(
-                                                {
-                                                    success: true,
-                                                    invitationId: this.lastID,
-                                                },
-                                                { status: 201 },
-                                            ),
-                                        );
-                                    },
-                                );
+                                            resolve(
+                                                NextResponse.json(
+                                                    {
+                                                        success: true,
+                                                        invitationId:
+                                                            this.lastID,
+                                                    },
+                                                    { status: 201 },
+                                                ),
+                                            );
+                                        },
+                                    );
+                                }
                             },
                         );
                     },

@@ -250,6 +250,77 @@
     font-weight: 600;
 }
 
+.player-mini-card-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.kick-player-btn {
+    border: 1px solid #d32f2f;
+    background: #fff5f5;
+    color: #b71c1c;
+    border-radius: 8px;
+    padding: 0.45rem 0.6rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.kick-player-btn:hover {
+    background: #ffebee;
+}
+
+.kick-player-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.captain-management {
+    margin-top: 1.25rem;
+    border-top: 1px solid #D8C4B6;
+    padding-top: 1rem;
+}
+
+.captain-management h3 {
+    margin: 0 0 0.75rem 0;
+    color: #213555;
+}
+
+.applications-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+}
+
+.application-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    border: 1px solid #D8C4B6;
+    border-radius: 10px;
+    background: #F5EFE7;
+    padding: 0.75rem 0.9rem;
+}
+
+.application-name {
+    margin: 0;
+    font-weight: 700;
+    color: #213555;
+}
+
+.application-email {
+    margin: 0.2rem 0 0 0;
+    color: #3E5879;
+    font-size: 0.9rem;
+}
+
+.application-actions {
+    display: flex;
+    gap: 0.4rem;
+}
+
 @media (max-width: 700px) {
     .match-row {
         grid-template-columns: 1fr;
@@ -257,6 +328,11 @@
 
     .match-league {
         text-align: left;
+    }
+
+    .application-item {
+        flex-direction: column;
+        align-items: flex-start;
     }
 }
 

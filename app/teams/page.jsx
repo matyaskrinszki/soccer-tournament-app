@@ -29,6 +29,8 @@ export default function TeamsBrowsePage() {
     });
     const [playerTeam, setPlayerTeam] = useState(null);
     const [joiningTeamId, setJoiningTeamId] = useState(null);
+    const [pendingRequestTeamIds, setPendingRequestTeamIds] = useState([]);
+    const [successJoiningTeamId, setSuccessJoiningTeamId] = useState(null);
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [authMode, setAuthMode] = useState('login');
 
@@ -114,6 +116,52 @@ export default function TeamsBrowsePage() {
         fetchTeams();
     }, []);
 
+    useEffect(() => {
+        if (!playerId || !isLoggedIn || teams.length === 0) {
+            setPendingRequestTeamIds([]);
+            return;
+        }
+
+        let cancelled = false;
+        const fetchPendingRequests = async () => {
+            const pending = [];
+            for (const team of teams) {
+                try {
+                    const res = await fetch(
+                        `/api/join-requests?teamId=${team.id}`,
+                        { headers: getAuthHeaders() },
+                    );
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.hasPendingRequest) {
+                            pending.push(team.id);
+                        }
+                    }
+                } catch (err) {
+                    // ignore
+                }
+            }
+            if (!cancelled) {
+                setPendingRequestTeamIds(pending);
+            }
+        };
+
+        fetchPendingRequests();
+        return () => {
+            cancelled = true;
+        };
+    }, [playerId, isLoggedIn, teams]);
+
+    useEffect(() => {
+        if (successJoiningTeamId === null) return;
+
+        const timer = setTimeout(() => {
+            setSuccessJoiningTeamId(null);
+        }, 2000);
+
+        return () => clearTimeout(timer);
+    }, [successJoiningTeamId]);
+
     const handleJoinTeam = async (e, teamId) => {
         e.preventDefault();
         e.stopPropagation();
@@ -135,7 +183,8 @@ export default function TeamsBrowsePage() {
                 return;
             }
 
-            alert('Csatlakozási kérelmet sikeresen elküldtél! Várd a csapatkapitány döntésére.');
+            setPendingRequestTeamIds((prev) => [...prev, teamId]);
+            setSuccessJoiningTeamId(teamId);
             setJoiningTeamId(null);
         } catch (err) {
             alert('Nem sikerült csatlakozási kérelmet elküldeni');
@@ -193,13 +242,13 @@ export default function TeamsBrowsePage() {
                                         {team.matches} M • {team.wins} Gy • {team.draws} D • {team.losses} V • {team.points} Pont
                                     </p>
                                 </div>
-                                {isLoggedIn && playerId && !playerTeam && (
+                                {isLoggedIn && playerId && !playerTeam && (!pendingRequestTeamIds.includes(team.id) || successJoiningTeamId === team.id) && (
                                     <button
-                                        className="join-team-btn"
+                                        className={`join-team-btn${successJoiningTeamId === team.id ? ' success' : ''}`}
                                         onClick={(e) => handleJoinTeam(e, team.id)}
-                                        disabled={joiningTeamId === team.id}
+                                        disabled={joiningTeamId === team.id || successJoiningTeamId === team.id}
                                     >
-                                        {joiningTeamId === team.id ? 'Küldés...' : 'Kérelem küldése'}
+                                        {successJoiningTeamId === team.id ? 'Sikeres' : (joiningTeamId === team.id ? 'Küldés...' : 'Kérelem küldése')}
                                     </button>
                                 )}
                             </Link>

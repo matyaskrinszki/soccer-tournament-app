@@ -99,7 +99,7 @@ export async function GET(request, context) {
 
 export async function PUT(request, context) {
     // Require authentication
-    const user = requireAuth(request);
+    const user = await requireAuth(request);
     if (user instanceof NextResponse) {
         return user;
     }

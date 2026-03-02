@@ -125,3 +125,11 @@
     opacity: 0.7;
     cursor: not-allowed;
 }
+
+.join-team-btn.success {
+    background: #28a745;
+}
+
+.join-team-btn.success:hover {
+    background: #28a745;
+}

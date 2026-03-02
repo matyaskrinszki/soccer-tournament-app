@@ -4,9 +4,56 @@ import { requireAuth } from "../../../lib/auth";
 
 initializeDb();
 
+export async function GET(request) {
+    // Require authentication
+    const user = await requireAuth(request);
+    if (user instanceof NextResponse) {
+        return user;
+    }
+
+    const { searchParams } = new URL(request.url);
+    const teamId = searchParams.get("teamId");
+
+    if (!teamId) {
+        return NextResponse.json(
+            { error: "Team ID is required" },
+            { status: 400 },
+        );
+    }
+
+    const playerId = user.playerId;
+    const db = getDb();
+
+    return new Promise((resolve) => {
+        db.get(
+            "SELECT id FROM join_requests WHERE player_id = ? AND team_id = ? AND status = ?",
+            [playerId, teamId, "pending"],
+            (err, row) => {
+                db.close();
+                if (err) {
+                    resolve(
+                        NextResponse.json(
+                            { error: "Adatbázis hiba történt" },
+                            { status: 500 },
+                        ),
+                    );
+                    return;
+                }
+
+                resolve(
+                    NextResponse.json(
+                        { hasPendingRequest: !!row },
+                        { status: 200 },
+                    ),
+                );
+            },
+        );
+    });
+}
+
 export async function POST(request) {
     // Require authentication
-    const user = requireAuth(request);
+    const user = await requireAuth(request);
     if (user instanceof NextResponse) {
         return user;
     }
@@ -97,7 +144,7 @@ export async function POST(request) {
                             return;
                         }
 
-                        // Check if a request already exists
+                        // Check if a pending request already exists
                         db.get(
                             "SELECT id, status FROM join_requests WHERE player_id = ? AND team_id = ?",
                             [playerId, teamId],
@@ -113,59 +160,86 @@ export async function POST(request) {
                                     return;
                                 }
 
-                                if (existingRequest) {
+                                // Only block if there's a PENDING request
+                                if (
+                                    existingRequest &&
+                                    existingRequest.status === "pending"
+                                ) {
                                     db.close();
-                                    if (existingRequest.status === "pending") {
-                                        resolve(
-                                            NextResponse.json(
-                                                {
-                                                    error: "Már van függőben lévő kérésed erre a csapatra",
-                                                },
-                                                { status: 400 },
-                                            ),
-                                        );
-                                    } else {
-                                        resolve(
-                                            NextResponse.json(
-                                                {
-                                                    error: "Már van felterjesztésed erre a csapatra",
-                                                },
-                                                { status: 400 },
-                                            ),
-                                        );
-                                    }
+                                    resolve(
+                                        NextResponse.json(
+                                            {
+                                                error: "Már van függőben lévő kérésed erre a csapatra",
+                                            },
+                                            { status: 400 },
+                                        ),
+                                    );
                                     return;
                                 }
 
-                                // Create join request
-                                db.run(
-                                    "INSERT INTO join_requests (player_id, team_id, status) VALUES (?, ?, ?)",
-                                    [playerId, teamId, "pending"],
-                                    function (insertErr) {
-                                        db.close();
-                                        if (insertErr) {
+                                // If request exists but is not pending, update it to pending
+                                // Otherwise, create a new request
+                                if (existingRequest) {
+                                    db.run(
+                                        "UPDATE join_requests SET status = ?, created_at = CURRENT_TIMESTAMP WHERE id = ?",
+                                        ["pending", existingRequest.id],
+                                        function (updateErr) {
+                                            db.close();
+                                            if (updateErr) {
+                                                resolve(
+                                                    NextResponse.json(
+                                                        {
+                                                            error: "Nem sikerült a kérést elküldeni",
+                                                        },
+                                                        { status: 500 },
+                                                    ),
+                                                );
+                                                return;
+                                            }
+
                                             resolve(
                                                 NextResponse.json(
                                                     {
-                                                        error: "Nem sikerült a kérést elküldeni",
+                                                        success: true,
+                                                        requestId:
+                                                            existingRequest.id,
                                                     },
-                                                    { status: 500 },
+                                                    { status: 201 },
                                                 ),
                                             );
-                                            return;
-                                        }
+                                        },
+                                    );
+                                } else {
+                                    // Create new join request
+                                    db.run(
+                                        "INSERT INTO join_requests (player_id, team_id, status) VALUES (?, ?, ?)",
+                                        [playerId, teamId, "pending"],
+                                        function (insertErr) {
+                                            db.close();
+                                            if (insertErr) {
+                                                resolve(
+                                                    NextResponse.json(
+                                                        {
+                                                            error: "Nem sikerült a kérést elküldeni",
+                                                        },
+                                                        { status: 500 },
+                                                    ),
+                                                );
+                                                return;
+                                            }
 
-                                        resolve(
-                                            NextResponse.json(
-                                                {
-                                                    success: true,
-                                                    requestId: this.lastID,
-                                                },
-                                                { status: 201 },
-                                            ),
-                                        );
-                                    },
-                                );
+                                            resolve(
+                                                NextResponse.json(
+                                                    {
+                                                        success: true,
+                                                        requestId: this.lastID,
+                                                    },
+                                                    { status: 201 },
+                                                ),
+                                            );
+                                        },
+                                    );
+                                }
                             },
                         );
                     },

@@ -6,7 +6,7 @@ initializeDb();
 
 export async function GET(request) {
     // Require authentication
-    const user = requireAuth(request);
+    const user = await requireAuth(request);
     if (user instanceof NextResponse) {
         return user;
     }

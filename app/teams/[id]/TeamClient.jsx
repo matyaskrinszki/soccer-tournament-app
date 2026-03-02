@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Header from '../../components/Header';
 import AuthModal from '../../components/AuthModal';
+import { getAuthHeaders } from '../../../lib/client-auth';
 
 export default function TeamClient({ id }) {
     const [team, setTeam] = useState(null);
@@ -14,6 +15,11 @@ export default function TeamClient({ id }) {
     const [players, setPlayers] = useState([]);
     const [contentView, setContentView] = useState('matches'); // 'matches' or 'players'
     const [matchView, setMatchView] = useState('upcoming'); // 'upcoming' or 'previous'
+    const [currentPlayerId, setCurrentPlayerId] = useState(null);
+    const [teamApplications, setTeamApplications] = useState([]);
+    const [isTeamCaptain, setIsTeamCaptain] = useState(false);
+    const [processingApplicationId, setProcessingApplicationId] = useState(null);
+    const [kickingPlayerId, setKickingPlayerId] = useState(null);
 
     const [isLoggedIn, setIsLoggedIn] = useState(() => {
         if (typeof window === 'undefined') return false;
@@ -83,6 +89,133 @@ export default function TeamClient({ id }) {
         fetchTeam();
         fetchPlayers();
     }, [id]);
+
+    useEffect(() => {
+        if (!isLoggedIn || !userEmail) {
+            setCurrentPlayerId(null);
+            return;
+        }
+
+        let cancelled = false;
+        const resolvePlayerId = async () => {
+            const storedId = localStorage.getItem('playerId');
+            if (storedId) {
+                if (!cancelled) setCurrentPlayerId(Number(storedId));
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/players?email=${encodeURIComponent(userEmail)}`);
+                if (!res.ok) return;
+                const data = await res.json();
+                if (data?.player?.id && !cancelled) {
+                    localStorage.setItem('playerId', String(data.player.id));
+                    setCurrentPlayerId(data.player.id);
+                }
+            } catch (err) {
+                // ignore
+            }
+        };
+
+        resolvePlayerId();
+        return () => {
+            cancelled = true;
+        };
+    }, [isLoggedIn, userEmail]);
+
+    useEffect(() => {
+        if (!team || !currentPlayerId) {
+            setIsTeamCaptain(false);
+            setTeamApplications([]);
+            return;
+        }
+
+        const captain = Number(team.captainPlayerId) === Number(currentPlayerId);
+        setIsTeamCaptain(captain);
+        if (!captain) {
+            setTeamApplications([]);
+            return;
+        }
+
+        const fetchApplications = async () => {
+            try {
+                const res = await fetch(`/api/player-requests?playerId=${currentPlayerId}`, {
+                    headers: getAuthHeaders(),
+                });
+                if (!res.ok) {
+                    setTeamApplications([]);
+                    return;
+                }
+
+                const data = await res.json();
+                setTeamApplications(data?.teamApplications || []);
+            } catch (err) {
+                setTeamApplications([]);
+            }
+        };
+
+        fetchApplications();
+    }, [team, currentPlayerId]);
+
+    const handleJoinRequestResponse = async (requestId, action) => {
+        setProcessingApplicationId(requestId);
+        setError('');
+        try {
+            const res = await fetch(`/api/join-requests/${requestId}`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ action }),
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || 'Nem sikerült a kérelem feldolgozása');
+            }
+
+            const requestsRes = await fetch(`/api/player-requests?playerId=${currentPlayerId}`, {
+                headers: getAuthHeaders(),
+            });
+            const requestsData = await requestsRes.json();
+            if (requestsRes.ok) {
+                setTeamApplications(requestsData?.teamApplications || []);
+            }
+
+            const playersRes = await fetch('/api/players');
+            const playersData = await playersRes.json();
+            if (playersRes.ok) {
+                const teamPlayers = (playersData.players || []).filter(p => p.team?.id === parseInt(id));
+                setPlayers(teamPlayers);
+            }
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setProcessingApplicationId(null);
+        }
+    };
+
+    const handleKickPlayer = async (playerId) => {
+        if (!id) return;
+        setKickingPlayerId(playerId);
+        setError('');
+
+        try {
+            const res = await fetch(`/api/teams/${id}/kick`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ playerId }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || 'Nem sikerült eltávolítani a játékost');
+            }
+
+            setPlayers((prev) => prev.filter((p) => Number(p.id) !== Number(playerId)));
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setKickingPlayerId(null);
+        }
+    };
 
     return (
         <div className="team-page">
@@ -254,14 +387,64 @@ export default function TeamClient({ id }) {
                                 ) : (
                                     <div className="players-grid">
                                         {players.map((player) => (
-                                            <Link href={`/players/${player.id}`} key={player.id} className="player-card-link">
-                                                <div className="player-mini-card">
-                                                    <h3>{player.name || player.email}</h3>
-                                                </div>
-                                            </Link>
+                                            <div key={player.id} className="player-mini-card-wrapper">
+                                                <Link href={`/players/${player.id}`} className="player-card-link">
+                                                    <div className="player-mini-card">
+                                                        <h3>{player.name || player.email}</h3>
+                                                    </div>
+                                                </Link>
+                                                {isTeamCaptain && Number(player.id) !== Number(team.captainPlayerId) && (
+                                                    <button
+                                                        type="button"
+                                                        className="kick-player-btn"
+                                                        onClick={() => handleKickPlayer(player.id)}
+                                                        disabled={kickingPlayerId === player.id}
+                                                    >
+                                                        {kickingPlayerId === player.id ? 'Eltávolítás...' : 'Játékos kirakása'}
+                                                    </button>
+                                                )}
+                                            </div>
                                         ))}
                                     </div>
                                 )
+                            )}
+
+                            {isTeamCaptain && (
+                                <div className="captain-management">
+                                    <h3>Csatlakozási kérelmek</h3>
+                                    {teamApplications.length === 0 ? (
+                                        <p className="muted">Nincs függőben lévő csatlakozási kérelem.</p>
+                                    ) : (
+                                        <div className="applications-list">
+                                            {teamApplications.map((application) => (
+                                                <div key={application.id} className="application-item">
+                                                    <div className="application-info">
+                                                        <p className="application-name">{application.playerName || application.playerEmail}</p>
+                                                        <p className="application-email">{application.playerEmail}</p>
+                                                    </div>
+                                                    <div className="application-actions">
+                                                        <button
+                                                            type="button"
+                                                            className="toggle-btn active"
+                                                            onClick={() => handleJoinRequestResponse(application.id, 'accept')}
+                                                            disabled={processingApplicationId === application.id}
+                                                        >
+                                                            {processingApplicationId === application.id ? 'Feldolgozás...' : 'Elfogad'}
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className="toggle-btn"
+                                                            onClick={() => handleJoinRequestResponse(application.id, 'reject')}
+                                                            disabled={processingApplicationId === application.id}
+                                                        >
+                                                            Elutasít
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             )}
                         </section>
                     </>

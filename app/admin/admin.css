@@ -1,0 +1,110 @@
+.admin-page {
+    min-height: 100vh;
+    background: linear-gradient(180deg, #F5EFE7 0%, #F5EFE7 60%);
+}
+
+.admin-container {
+    padding: 2.5rem 1.25rem 3rem;
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.admin-header h1 {
+    margin: 0 0 0.35rem 0;
+    color: #1a1a1a;
+    font-size: 2.5rem;
+}
+
+.admin-subtitle {
+    margin: 0;
+    color: #3E5879;
+    font-size: 0.95rem;
+}
+
+.admin-card {
+    background: #ffffff;
+    border: 1px solid #D8C4B6;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 6px 16px rgba(33, 53, 85, 0.05);
+}
+
+.admin-card.error {
+    border-color: #f5c2c7;
+    background: #fdecee;
+    color: #8a1c1c;
+}
+
+.admin-card h3 {
+    margin: 0 0 0.75rem 0;
+    color: #1a1a1a;
+}
+
+.admin-card p {
+    margin: 0;
+    color: #3E5879;
+    line-height: 1.6;
+}
+
+.admin-tabs {
+    display: flex;
+    gap: 1rem;
+    border-bottom: 2px solid #D8C4B6;
+    margin-bottom: 1rem;
+}
+
+.tab-btn {
+    padding: 0.75rem 1.25rem;
+    background: none;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    font-weight: 600;
+    color: #3E5879;
+    font-size: 0.95rem;
+    transition: all 150ms ease;
+}
+
+.tab-btn:hover {
+    color: #2d4560;
+}
+
+.tab-btn.active {
+    color: #2d4560;
+    border-bottom-color: #3E5879;
+}
+
+.admin-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.stat-card {
+    background: #ffffff;
+    border: 1px solid #D8C4B6;
+    border-radius: 12px;
+    padding: 2rem 1.5rem;
+    box-shadow: 0 6px 16px rgba(33, 53, 85, 0.05);
+    text-align: center;
+}
+
+.stat-card h3 {
+    margin: 0 0 1rem 0;
+    color: #3E5879;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
+}
+
+.stat-number {
+    margin: 0 !important;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #1a1a1a;
+}
