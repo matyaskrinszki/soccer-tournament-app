@@ -1,0 +1,253 @@
+.preferences-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #F5EFE7 0%, #F5EFE7 60%);
+}
+
+.preferences-container {
+  padding: 2.5rem 1.25rem 3rem;
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.preferences-header h1 {
+  margin: 0 0 0.35rem 0;
+  color: #1a1a1a;
+  font-size: 2.5rem;
+}
+
+.preferences-subtitle {
+  margin: 0;
+  color: #3E5879;
+  font-size: 0.95rem;
+}
+
+.preferences-card {
+  background: #ffffff;
+  border: 1px solid #D8C4B6;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 6px 16px rgba(33, 53, 85, 0.05);
+}
+
+.preferences-card.error {
+  border-color: #f5c2c7;
+  background: #fdecee;
+  color: #8a1c1c;
+}
+
+.preferences-card.success {
+  border-color: #d1f0e8;
+  background: #e8f8f3;
+  color: #146b6a;
+}
+
+.preferences-card p {
+  margin: 0;
+  color: #3E5879;
+  line-height: 1.6;
+}
+
+.loading {
+  text-align: center;
+  padding: 2rem;
+  color: #3E5879;
+  font-weight: 600;
+}
+
+/* Selector Section */
+.selector-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #D8C4B6;
+}
+
+.selector-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.selector-group label {
+  font-weight: 600;
+  color: #1a1a1a;
+  font-size: 0.95rem;
+}
+
+.selector-group select {
+  padding: 0.75rem;
+  border: 1px solid #D8C4B6;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.selector-group select:focus {
+  outline: none;
+  border-color: #3E5879;
+  box-shadow: 0 0 0 3px rgba(62, 88, 121, 0.1);
+}
+
+/* Time Slots Section */
+.time-slots-section {
+  margin: 2rem 0;
+}
+
+.time-slots-section h3 {
+  margin: 0 0 1.5rem 0;
+  color: #1a1a1a;
+  font-size: 1.25rem;
+}
+
+.time-slots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.time-slot-card {
+  border: 2px solid #D8C4B6;
+  border-radius: 8px;
+  padding: 1.25rem;
+  background: #f9f7f3;
+  transition: all 150ms ease;
+}
+
+.time-slot-card:hover {
+  border-color: #3E5879;
+  box-shadow: 0 4px 12px rgba(33, 53, 85, 0.1);
+}
+
+.slot-header {
+  margin-bottom: 0.75rem;
+}
+
+.slot-day {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #1a1a1a;
+  margin-bottom: 0.25rem;
+}
+
+.slot-time {
+  font-size: 0.9rem;
+  color: #3E5879;
+  font-weight: 600;
+}
+
+.slot-location {
+  font-size: 0.85rem;
+  color: #5a6a7a;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background: #ffffff;
+  border-radius: 4px;
+}
+
+.slot-preferences {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.pref-btn {
+  padding: 0.5rem;
+  border: 2px solid #D8C4B6;
+  border-radius: 6px;
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 150ms ease;
+  color: #3E5879;
+}
+
+.pref-btn:hover {
+  border-color: #3E5879;
+}
+
+.pref-btn.preferred.active {
+  background: #d1f0e8;
+  border-color: #10b981;
+  color: #046b4a;
+}
+
+.pref-btn.neutral.active {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #7c3c00;
+}
+
+.pref-btn.unavailable.active {
+  background: #fee2e2;
+  border-color: #ef4444;
+  color: #7f1d1d;
+}
+
+/* Info Text */
+.info-text {
+  text-align: center;
+  padding: 2rem;
+  color: #3E5879;
+  font-style: italic;
+}
+
+/* Save Section */
+.save-section {
+  display: flex;
+  justify-content: center;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #D8C4B6;
+}
+
+.btn-save {
+  padding: 0.875rem 2rem;
+  background: #3E5879;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: background 150ms ease;
+}
+
+.btn-save:hover:not(:disabled) {
+  background: #2d4560;
+}
+
+.btn-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .preferences-container {
+    padding: 1.5rem 1rem 2rem;
+  }
+
+  .preferences-header h1 {
+    font-size: 1.75rem;
+  }
+
+  .selector-section {
+    grid-template-columns: 1fr;
+  }
+
+  .time-slots-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .slot-preferences {
+    grid-template-columns: 1fr;
+  }
+}

@@ -121,19 +121,19 @@ export default function Header({ isLoggedIn, userEmail, setIsLoggedIn, onOpenAut
                 <div className="top-bar-container">
                     <div className="top-bar-spacer" />
                     <div className="auth-section">
-                        {isLoggedIn ? (
+                        {!isHydrated ? (
                             <>
-                                {isHydrated ? (
-                                    <span
-                                        className="auth-link user-email-link"
-                                        onClick={handleUserEmailClick}
-                                        style={{ cursor: isResolvingPlayer ? 'default' : 'pointer', opacity: isResolvingPlayer ? 0.6 : 1 }}
-                                    >
-                                        {isResolvingPlayer ? 'Betöltés...' : userEmail}
-                                    </span>
-                                ) : (
-                                    <span className="auth-link">{userEmail}</span>
-                                )}
+                                <span className="auth-link">Betöltés...</span>
+                            </>
+                        ) : isLoggedIn ? (
+                            <>
+                                <span
+                                    className="auth-link user-email-link"
+                                    onClick={handleUserEmailClick}
+                                    style={{ cursor: isResolvingPlayer ? 'default' : 'pointer', opacity: isResolvingPlayer ? 0.6 : 1 }}
+                                >
+                                    {isResolvingPlayer ? 'Betöltés...' : userEmail}
+                                </span>
                                 <span className="auth-link" onClick={handleLogout}>Kijelentkezés</span>
                             </>
                         ) : (
@@ -155,10 +155,13 @@ export default function Header({ isLoggedIn, userEmail, setIsLoggedIn, onOpenAut
                         <Link href="/players">Játékosok</Link>
                         <Link href="/teams">Csapatok</Link>
                         <Link href="/statistics">Statisztikák</Link>
-                        {isLoggedIn && captainTeamId && (
+                        {isHydrated && isLoggedIn && (
+                            <Link href="/matches/preferences">Preferenciák</Link>
+                        )}
+                        {isHydrated && isLoggedIn && captainTeamId && (
                             <Link href={`/teams/${captainTeamId}`}>Csapatom</Link>
                         )}
-                        {isLoggedIn && userRole === 'Admin' && (
+                        {isHydrated && isLoggedIn && userRole === 'Admin' && (
                             <Link href="/admin">Szervezés</Link>
                         )}
                     </nav>

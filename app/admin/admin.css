@@ -43,6 +43,12 @@
     color: #1a1a1a;
 }
 
+.admin-card h4 {
+    margin: 1rem 0 0.5rem 0;
+    color: #1a1a1a;
+    font-size: 1rem;
+}
+
 .admin-card p {
     margin: 0;
     color: #3E5879;
@@ -107,4 +113,127 @@
     font-size: 2.5rem;
     font-weight: 700;
     color: #1a1a1a;
+}
+
+/* Form Sections */
+.league-selector,
+.form-section {
+    margin: 1.5rem 0;
+    padding: 1.25rem;
+    background: #f9f7f3;
+    border-radius: 8px;
+    border-left: 4px solid #3E5879;
+}
+
+.league-selector label,
+.form-section h4 {
+    display: block;
+    margin: 0 0 1rem 0;
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+.admin-card input,
+.admin-card select {
+    width: 100%;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    border: 1px solid #D8C4B6;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-family: inherit;
+}
+
+.admin-card input:focus,
+.admin-card select:focus {
+    outline: none;
+    border-color: #3E5879;
+    box-shadow: 0 0 0 3px rgba(62, 88, 121, 0.1);
+}
+
+.btn-primary {
+    padding: 0.75rem 1.5rem;
+    background: #3E5879;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: background 150ms ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: #2d4560;
+}
+
+.btn-primary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.btn-danger {
+    padding: 0.45rem 0.75rem;
+    background: #b23a48;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.btn-danger:hover {
+    background: #8f2e39;
+}
+
+/* Tables */
+.admin-card table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.admin-card table thead {
+    background: #f9f7f3;
+}
+
+.admin-card table th {
+    padding: 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    color: #1a1a1a;
+    border-bottom: 2px solid #D8C4B6;
+}
+
+.admin-card table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid #D8C4B6;
+    color: #3E5879;
+}
+
+.admin-card table tbody tr:hover {
+    background: #f9f7f3;
+}
+
+/* Sub-sections */
+.seasons-list,
+.slots-list,
+.schedules-history {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #D8C4B6;
+}
+
+.schedule-info {
+    background: #f9f7f3;
+    padding: 1.25rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.schedule-info p {
+    margin: 0.5rem 0;
+    color: #1a1a1a;
+    font-weight: 500;
 }

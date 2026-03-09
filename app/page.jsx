@@ -1,25 +1,24 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Header from './components/Header';
 import AuthModal from './components/AuthModal';
 import './page.css';
 
 export default function Home() {
-    const [isLoggedIn, setIsLoggedIn] = useState(() => {
-        if (typeof window === 'undefined') return false;
-        const token = localStorage.getItem('token');
-        const email = localStorage.getItem('email');
-        return Boolean(token && email);
-    });
-
-    const [userEmail, setUserEmail] = useState(() => {
-        if (typeof window === 'undefined') return '';
-        return localStorage.getItem('email') ?? '';
-    });
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [userEmail, setUserEmail] = useState('');
 
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [authMode, setAuthMode] = useState('login');
+
+    useEffect(() => {
+        const token = localStorage.getItem('token');
+        const email = localStorage.getItem('email');
+        setIsLoggedIn(Boolean(token && email));
+        setUserEmail(email ?? '');
+    }, []);
+
     const handleOpenAuth = (mode) => {
         setAuthMode(mode);
         setShowAuthModal(true);
