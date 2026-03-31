@@ -5,13 +5,61 @@ import { generateSchedule, validateSchedule } from "../../../../lib/scheduler";
 
 initializeDb();
 
+const MIN_PREFERRED = 8;
+const MAX_UNAVAILABLE = 8;
+const START_TIMES = new Set([
+    "17:00",
+    "18:00",
+    "19:00",
+    "20:00",
+    "21:00",
+    "22:00",
+]);
+
+function buildRecurringKey(dayOfWeek, startTime) {
+    return `${dayOfWeek}|${startTime}`;
+}
+
+function dbGet(db, query, params = []) {
+    return new Promise((resolve, reject) => {
+        db.get(query, params, (err, row) => {
+            if (err) {
+                reject(err);
+                return;
+            }
+            resolve(row);
+        });
+    });
+}
+
+function dbAll(db, query, params = []) {
+    return new Promise((resolve, reject) => {
+        db.all(query, params, (err, rows) => {
+            if (err) {
+                reject(err);
+                return;
+            }
+            resolve(rows || []);
+        });
+    });
+}
+
+function dbRun(db, query, params = []) {
+    return new Promise((resolve, reject) => {
+        db.run(query, params, function (err) {
+            if (err) {
+                reject(err);
+                return;
+            }
+            resolve({ lastID: this.lastID, changes: this.changes });
+        });
+    });
+}
+
 export async function POST(request) {
     const user = await requireAdmin(request);
-    if (!user) {
-        return NextResponse.json(
-            { error: "Nincs jogosultságod" },
-            { status: 403 },
-        );
+    if (user instanceof NextResponse) {
+        return user;
     }
 
     const body = await request.json();
@@ -24,260 +72,318 @@ export async function POST(request) {
         );
     }
 
-    return new Promise((resolve) => {
-        const db = getDb();
+    const db = getDb();
 
-        // Get season and league info
-        db.get(
-            `SELECT id, league_id, name FROM seasons WHERE id = ?`,
+    try {
+        const season = await dbGet(
+            db,
+            `SELECT id, name FROM seasons WHERE id = ?`,
             [seasonId],
-            (err, season) => {
-                if (err || !season) {
-                    db.close();
-                    return resolve(
-                        NextResponse.json(
-                            { error: "Szezon nem található" },
-                            { status: 404 },
-                        ),
+        );
+
+        if (!season) {
+            return NextResponse.json(
+                { error: "Szezon nem található" },
+                { status: 404 },
+            );
+        }
+
+        const timeSlots = await dbAll(
+            db,
+            `SELECT id, pitch_id as pitchId, slot_date as slotDate, day_of_week as dayOfWeek, start_time as startTime, end_time as endTime
+             FROM time_slots
+             WHERE season_id = ?
+             ORDER BY slot_date IS NULL, slot_date, day_of_week, start_time`,
+            [seasonId],
+        );
+
+        if (timeSlots.length === 0) {
+            return NextResponse.json(
+                { error: "Nincsenek időpontok konfigurálva" },
+                { status: 400 },
+            );
+        }
+
+        const leagueRows = await dbAll(
+            db,
+            `SELECT league_id as leagueId, COUNT(*) as teamCount
+             FROM teams
+             WHERE league_id IS NOT NULL
+             GROUP BY league_id
+             HAVING COUNT(*) >= 2
+             ORDER BY league_id`,
+        );
+
+        if (leagueRows.length === 0) {
+            return NextResponse.json(
+                {
+                    error: "Nincs legalább két csapatot tartalmazó liga az ütemezéshez",
+                },
+                { status: 400 },
+            );
+        }
+
+        const allPreferences = await dbAll(
+            db,
+            `SELECT p.team_id as teamId,
+                    p.time_slot_id as timeSlotId,
+                    p.preference,
+                    ts.day_of_week as dayOfWeek,
+                    ts.start_time as startTime
+             FROM team_availability_preferences p
+             INNER JOIN time_slots ts ON ts.id = p.time_slot_id
+             WHERE p.season_id = ?`,
+            [seasonId],
+        );
+
+        const preferencesByTeam = new Map();
+        for (const preference of allPreferences) {
+            if (!preferencesByTeam.has(preference.teamId)) {
+                preferencesByTeam.set(preference.teamId, []);
+            }
+            preferencesByTeam.get(preference.teamId).push(preference);
+        }
+
+        const recurringOptionKeys = new Set();
+        for (const slot of timeSlots) {
+            if (
+                Number.isInteger(slot.dayOfWeek) &&
+                slot.dayOfWeek >= 0 &&
+                slot.dayOfWeek <= 4 &&
+                START_TIMES.has(slot.startTime)
+            ) {
+                recurringOptionKeys.add(
+                    buildRecurringKey(slot.dayOfWeek, slot.startTime),
+                );
+            }
+        }
+
+        const requiredPreferred = Math.min(
+            MIN_PREFERRED,
+            recurringOptionKeys.size,
+        );
+
+        await dbRun(db, "BEGIN TRANSACTION");
+        try {
+            const generationResults = [];
+
+            for (const leagueRow of leagueRows) {
+                const leagueId = leagueRow.leagueId;
+                const teams = await dbAll(
+                    db,
+                    `SELECT id, name FROM teams WHERE league_id = ? ORDER BY id`,
+                    [leagueId],
+                );
+
+                const teamIds = teams.map((team) => team.id);
+
+                const preferenceIssues = [];
+                for (const team of teams) {
+                    const teamPreferenceRows =
+                        preferencesByTeam.get(team.id) || [];
+
+                    const preferredRecurring = new Set();
+                    const unavailableRecurring = new Set();
+
+                    for (const pref of teamPreferenceRows) {
+                        if (
+                            !Number.isInteger(pref.dayOfWeek) ||
+                            pref.dayOfWeek < 0 ||
+                            pref.dayOfWeek > 4 ||
+                            !START_TIMES.has(pref.startTime)
+                        ) {
+                            continue;
+                        }
+
+                        const recurringKey = buildRecurringKey(
+                            pref.dayOfWeek,
+                            pref.startTime,
+                        );
+
+                        if (pref.preference === "preferred") {
+                            preferredRecurring.add(recurringKey);
+                        }
+
+                        if (pref.preference === "unavailable") {
+                            unavailableRecurring.add(recurringKey);
+                        }
+                    }
+
+                    const preferredCount = preferredRecurring.size;
+                    const unavailableCount = unavailableRecurring.size;
+
+                    if (preferredCount < requiredPreferred) {
+                        preferenceIssues.push({
+                            teamId: team.id,
+                            teamName: team.name,
+                            preferredCount,
+                            requiredPreferred,
+                            unavailableCount,
+                        });
+                        continue;
+                    }
+
+                    if (unavailableCount > MAX_UNAVAILABLE) {
+                        preferenceIssues.push({
+                            teamId: team.id,
+                            teamName: team.name,
+                            preferredCount,
+                            requiredPreferred,
+                            unavailableCount,
+                            maxUnavailable: MAX_UNAVAILABLE,
+                        });
+                    }
+                }
+
+                if (preferenceIssues.length > 0) {
+                    throw {
+                        type: "preference-coverage",
+                        leagueId,
+                        issues: preferenceIssues,
+                        requiredPreferred,
+                        maxUnavailable: MAX_UNAVAILABLE,
+                    };
+                }
+
+                const teamPreferences = new Map();
+                teamIds.forEach((id) => teamPreferences.set(id, new Map()));
+
+                (allPreferences || []).forEach((pref) => {
+                    if (!teamPreferences.has(pref.teamId)) {
+                        return;
+                    }
+                    teamPreferences
+                        .get(pref.teamId)
+                        .set(pref.timeSlotId, pref.preference);
+                });
+
+                const result = generateSchedule({
+                    teamIds,
+                    timeSlots,
+                    teamPreferences,
+                });
+
+                const validation = validateSchedule(result.schedule, timeSlots);
+                if (!validation.isValid) {
+                    throw {
+                        type: "validation",
+                        leagueId,
+                        conflicts: validation.conflicts,
+                    };
+                }
+
+                await dbRun(
+                    db,
+                    `UPDATE schedule_runs SET status = 'archived'
+                     WHERE season_id = ? AND league_id = ?`,
+                    [seasonId, leagueId],
+                );
+
+                const scheduleRunInsert = await dbRun(
+                    db,
+                    `INSERT INTO schedule_runs (season_id, league_id, algorithm_score, status)
+                     VALUES (?, ?, ?, 'current')`,
+                    [seasonId, leagueId, result.satisfactionScore],
+                );
+
+                const scheduleRunId = scheduleRunInsert.lastID;
+
+                for (let index = 0; index < result.schedule.length; index++) {
+                    const match = result.schedule[index];
+                    await dbRun(
+                        db,
+                        `INSERT INTO scheduled_matches
+                         (schedule_run_id, home_team_id, away_team_id, time_slot_id, pitch_id, round_number)
+                         VALUES (?, ?, ?, ?, ?, ?)`,
+                        [
+                            scheduleRunId,
+                            match.homeTeamId,
+                            match.awayTeamId,
+                            match.timeSlotId,
+                            match.pitchId,
+                            index + 1,
+                        ],
                     );
                 }
 
-                // Get all teams in the league
-                db.all(
-                    `SELECT id FROM teams WHERE league_id = ? ORDER BY id`,
-                    [season.league_id],
-                    (err, teams) => {
-                        if (err || !teams || teams.length === 0) {
-                            db.close();
-                            return resolve(
-                                NextResponse.json(
-                                    { error: "Nincsenek csapatok a ligában" },
-                                    { status: 400 },
-                                ),
-                            );
-                        }
+                generationResults.push({
+                    leagueId,
+                    scheduleRunId,
+                    matchCount: result.scheduledMatchCount,
+                    satisfactionScore: result.satisfactionScore,
+                });
+            }
 
-                        const teamIds = teams.map((t) => t.id);
+            await dbRun(db, "COMMIT");
 
-                        // Get all time slots for this season
-                        db.all(
-                            `SELECT id, pitch_id as pitchId, slot_date as slotDate, day_of_week as dayOfWeek, start_time as startTime, end_time as endTime
-                             FROM time_slots 
-                             WHERE season_id = ?
-                             ORDER BY slot_date IS NULL, slot_date, day_of_week, start_time`,
-                            [seasonId],
-                            (err, timeSlots) => {
-                                if (
-                                    err ||
-                                    !timeSlots ||
-                                    timeSlots.length === 0
-                                ) {
-                                    db.close();
-                                    return resolve(
-                                        NextResponse.json(
-                                            {
-                                                error: "Nincsenek időpontok konfigurálva",
-                                            },
-                                            { status: 400 },
-                                        ),
-                                    );
-                                }
+            const totalMatchCount = generationResults.reduce(
+                (sum, current) => sum + current.matchCount,
+                0,
+            );
 
-                                // Get team preferences
-                                db.all(
-                                    `SELECT team_id as teamId, time_slot_id as timeSlotId, preference
-                                     FROM team_availability_preferences 
-                                     WHERE season_id = ?`,
-                                    [seasonId],
-                                    (err, prefs) => {
-                                        if (err) {
-                                            db.close();
-                                            return resolve(
-                                                NextResponse.json(
-                                                    {
-                                                        error: "Hiba a preferenciák lekérdezésekor",
-                                                    },
-                                                    { status: 500 },
-                                                ),
-                                            );
-                                        }
+            return NextResponse.json(
+                {
+                    success: true,
+                    seasonId,
+                    seasonName: season.name,
+                    generatedLeagueCount: generationResults.length,
+                    totalMatchCount,
+                    results: generationResults,
+                },
+                { status: 201 },
+            );
+        } catch (innerErr) {
+            try {
+                await dbRun(db, "ROLLBACK");
+            } catch {
+                // Ignore rollback errors and return the original failure.
+            }
 
-                                        // Build preferences map
-                                        const teamPreferences = new Map();
-                                        teamIds.forEach((id) =>
-                                            teamPreferences.set(id, new Map()),
-                                        );
-
-                                        (prefs || []).forEach((pref) => {
-                                            if (
-                                                !teamPreferences.has(
-                                                    pref.teamId,
-                                                )
-                                            ) {
-                                                teamPreferences.set(
-                                                    pref.teamId,
-                                                    new Map(),
-                                                );
-                                            }
-                                            teamPreferences
-                                                .get(pref.teamId)
-                                                .set(
-                                                    pref.timeSlotId,
-                                                    pref.preference,
-                                                );
-                                        });
-
-                                        // Run scheduling algorithm
-                                        const result = generateSchedule({
-                                            teamIds,
-                                            timeSlots,
-                                            teamPreferences,
-                                        });
-
-                                        // Validate schedule
-                                        const validation = validateSchedule(
-                                            result.schedule,
-                                            timeSlots,
-                                        );
-
-                                        if (!validation.isValid) {
-                                            db.close();
-                                            return resolve(
-                                                NextResponse.json(
-                                                    {
-                                                        error: "Ütemezési konfliktusok",
-                                                        conflicts:
-                                                            validation.conflicts,
-                                                    },
-                                                    { status: 400 },
-                                                ),
-                                            );
-                                        }
-
-                                        // Archive old schedules
-                                        db.run(
-                                            `UPDATE schedule_runs SET status = 'archived' 
-                                             WHERE season_id = ? AND league_id = ?`,
-                                            [seasonId, season.league_id],
-                                            (err) => {
-                                                if (err) {
-                                                    db.close();
-                                                    return resolve(
-                                                        NextResponse.json(
-                                                            {
-                                                                error: "Hiba az öreg ütemezések archiválásakor",
-                                                            },
-                                                            { status: 500 },
-                                                        ),
-                                                    );
-                                                }
-
-                                                // Insert new schedule run
-                                                db.run(
-                                                    `INSERT INTO schedule_runs (season_id, league_id, algorithm_score, status)
-                                                     VALUES (?, ?, ?, 'current')`,
-                                                    [
-                                                        seasonId,
-                                                        season.league_id,
-                                                        result.satisfactionScore,
-                                                    ],
-                                                    function (err) {
-                                                        if (err) {
-                                                            db.close();
-                                                            return resolve(
-                                                                NextResponse.json(
-                                                                    {
-                                                                        error: "Hiba az ütemezési futtatás rögzítésekor",
-                                                                    },
-                                                                    {
-                                                                        status: 500,
-                                                                    },
-                                                                ),
-                                                            );
-                                                        }
-
-                                                        const scheduleRunId =
-                                                            this.lastID;
-
-                                                        // Insert scheduled matches
-                                                        let matchesInserted = 0;
-                                                        result.schedule.forEach(
-                                                            (match, index) => {
-                                                                db.run(
-                                                                    `INSERT INTO scheduled_matches 
-                                                                 (schedule_run_id, home_team_id, away_team_id, time_slot_id, pitch_id, round_number)
-                                                                 VALUES (?, ?, ?, ?, ?, ?)`,
-                                                                    [
-                                                                        scheduleRunId,
-                                                                        match.homeTeamId,
-                                                                        match.awayTeamId,
-                                                                        match.timeSlotId,
-                                                                        match.pitchId,
-                                                                        index +
-                                                                            1,
-                                                                    ],
-                                                                    (err) => {
-                                                                        if (
-                                                                            err
-                                                                        ) {
-                                                                            db.close();
-                                                                            return resolve(
-                                                                                NextResponse.json(
-                                                                                    {
-                                                                                        error: "Hiba az ütemezés mentésekor",
-                                                                                    },
-                                                                                    {
-                                                                                        status: 500,
-                                                                                    },
-                                                                                ),
-                                                                            );
-                                                                        }
-                                                                        matchesInserted++;
-
-                                                                        // When all matches inserted, return success
-                                                                        if (
-                                                                            matchesInserted ===
-                                                                            result
-                                                                                .schedule
-                                                                                .length
-                                                                        ) {
-                                                                            db.close();
-                                                                            return resolve(
-                                                                                NextResponse.json(
-                                                                                    {
-                                                                                        success: true,
-                                                                                        scheduleRunId,
-                                                                                        matchCount:
-                                                                                            result.scheduledMatchCount,
-                                                                                        satisfactionScore:
-                                                                                            result.satisfactionScore,
-                                                                                    },
-                                                                                    {
-                                                                                        status: 201,
-                                                                                    },
-                                                                                ),
-                                                                            );
-                                                                        }
-                                                                    },
-                                                                );
-                                                            },
-                                                        );
-                                                    },
-                                                );
-                                            },
-                                        );
-                                    },
-                                );
-                            },
-                        );
+            if (innerErr?.type === "validation") {
+                return NextResponse.json(
+                    {
+                        error: "Ütemezési konfliktusok",
+                        leagueId: innerErr.leagueId,
+                        conflicts: innerErr.conflicts,
                     },
+                    { status: 400 },
                 );
-            },
+            }
+
+            if (innerErr?.type === "preference-coverage") {
+                return NextResponse.json(
+                    {
+                        error: "A generálás előtt minden csapatnak teljesítenie kell a preferencia szabályokat",
+                        leagueId: innerErr.leagueId,
+                        requiredPreferred: innerErr.requiredPreferred,
+                        maxUnavailable: innerErr.maxUnavailable,
+                        issues: innerErr.issues,
+                    },
+                    { status: 400 },
+                );
+            }
+
+            return NextResponse.json(
+                { error: "Hiba az ütemezés mentésekor" },
+                { status: 500 },
+            );
+        }
+    } catch {
+        return NextResponse.json(
+            { error: "Hiba az ütemezés generálása során" },
+            { status: 500 },
         );
-    });
+    } finally {
+        db.close();
+    }
 }
 
 export async function GET(request) {
+    const user = await requireAdmin(request);
+    if (user instanceof NextResponse) {
+        return user;
+    }
+
     const url = new URL(request.url);
     const seasonId = url.searchParams.get("seasonId");
 
@@ -293,15 +399,18 @@ export async function GET(request) {
 
         db.all(
             `SELECT 
-                id,
-                season_id as seasonId,
-                league_id as leagueId,
-                generated_at as generatedAt,
-                algorithm_score as algorithmScore,
-                status
-             FROM schedule_runs
-             WHERE season_id = ?
-             ORDER BY generated_at DESC`,
+                sr.id,
+                sr.season_id as seasonId,
+                sr.league_id as leagueId,
+                sr.generated_at as generatedAt,
+                sr.algorithm_score as algorithmScore,
+                sr.status,
+                l.name as leagueName,
+                l.country as leagueCountry
+             FROM schedule_runs sr
+             LEFT JOIN leagues l ON l.id = sr.league_id
+             WHERE sr.season_id = ?
+             ORDER BY sr.generated_at DESC`,
             [seasonId],
             (err, rows) => {
                 if (err) {

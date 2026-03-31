@@ -24,16 +24,15 @@ export default function AdminPage() {
     const [isHydrated, setIsHydrated] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [success, setSuccess] = useState('');
     const [showAuthModal, setShowAuthModal] = useState(false);
     const [authMode, setAuthMode] = useState('login');
 
     // Tabs
     const [activeTab, setActiveTab] = useState('overview');
-    const [selectedLeague, setSelectedLeague] = useState(null);
     const [selectedSeason, setSelectedSeason] = useState(null);
 
     // Data
-    const [leagues, setLeagues] = useState([]);
     const [stats, setStats] = useState({ totalPlayers: 0, totalTeams: 0, totalMatches: 0 });
     const [seasons, setSeasons] = useState([]);
     const [pitches, setPitches] = useState([]);
@@ -43,10 +42,13 @@ export default function AdminPage() {
     // Form states
     const [seasonForm, setSeasonForm] = useState({ name: '', startDate: '', endDate: '' });
     const [pitchForm, setPitchForm] = useState({ name: '', location: '' });
-    const [timeSlotForm, setTimeSlotForm] = useState({ pitchId: '', dayOfWeek: 0, startTime: '17:00', endTime: '18:00' });
-    const [autoSlotForm, setAutoSlotForm] = useState({ startDate: '', endDate: '' });
     const [scheduling, setScheduling] = useState(false);
     const [autoGeneratingSlots, setAutoGeneratingSlots] = useState(false);
+    const [clearingSeasonDates, setClearingSeasonDates] = useState(false);
+    const [updatingSeasonStatusId, setUpdatingSeasonStatusId] = useState(null);
+    const selectedSeasonDetails = seasons.find(
+        (season) => String(season.id) === String(selectedSeason),
+    );
 
     const handleOpenAuth = (mode) => {
         setAuthMode(mode);
@@ -89,11 +91,10 @@ export default function AdminPage() {
                 setLoading(true);
                 setError('');
 
-                const [playersRes, teamsRes, matchesRes, leaguesRes] = await Promise.all([
+                const [playersRes, teamsRes, matchesRes] = await Promise.all([
                     fetch('/api/players'),
                     fetch('/api/teams-list'),
                     fetch('/api/matches'),
-                    fetch('/api/leagues'),
                 ]);
 
                 if (!playersRes.ok || !teamsRes.ok || !matchesRes.ok) {
@@ -103,18 +104,12 @@ export default function AdminPage() {
                 const playersData = await playersRes.json();
                 const teamsData = await teamsRes.json();
                 const matchesData = await matchesRes.json();
-                const leaguesData = leaguesRes.ok ? await leaguesRes.json() : { leagues: [] };
 
                 setStats({
                     totalPlayers: (playersData.players || []).length,
                     totalTeams: (teamsData.teams || []).length,
                     totalMatches: (matchesData.matches || []).length,
                 });
-
-                setLeagues(leaguesData.leagues || []);
-                if (leaguesData.leagues && leaguesData.leagues.length > 0) {
-                    setSelectedLeague(leaguesData.leagues[0].id);
-                }
             } catch (err) {
                 console.error('Admin data fetch error:', err);
                 setError(`Hiba az adatok betöltésekor: ${err.message}`);
@@ -129,26 +124,38 @@ export default function AdminPage() {
     }, [isHydrated, userRole]);
 
     useEffect(() => {
-        if (!isHydrated || !selectedLeague || activeTab !== 'seasons') return;
+        if (!isHydrated || !['seasons', 'pitches', 'schedule'].includes(activeTab)) return;
 
         const fetchSeasons = async () => {
             try {
-                const res = await fetch(`/api/admin/seasons?leagueId=${selectedLeague}`, {
+                const res = await fetch('/api/admin/seasons', {
                     headers: getAuthHeaders(),
                 });
                 if (!res.ok) throw new Error('Hiba a szezonok lekérdezésekor');
                 const data = await res.json();
-                setSeasons(data.seasons || []);
-                if (data.seasons && data.seasons.length > 0) {
-                    setSelectedSeason(data.seasons[0].id);
+                const fetchedSeasons = data.seasons || [];
+                setSeasons(fetchedSeasons);
+
+                if (fetchedSeasons.length === 0) {
+                    setSelectedSeason(null);
+                    return;
                 }
+
+                setSelectedSeason((previousSeasonId) => {
+                    const stillExists = fetchedSeasons.some(
+                        (season) => season.id === previousSeasonId,
+                    );
+                    return stillExists
+                        ? previousSeasonId
+                        : fetchedSeasons[0].id;
+                });
             } catch (err) {
                 console.error('Seasons fetch error:', err);
             }
         };
 
         fetchSeasons();
-    }, [isHydrated, selectedLeague, activeTab]);
+    }, [isHydrated, activeTab]);
 
     useEffect(() => {
         if (!isHydrated || !selectedSeason || !['pitches', 'schedule'].includes(activeTab)) return;
@@ -182,8 +189,8 @@ export default function AdminPage() {
     }, [isHydrated, selectedSeason, activeTab]);
 
     const handleCreateSeason = async () => {
-        if (!seasonForm.name || !selectedLeague) {
-            setError('Szezon név és liga szükséges');
+        if (!seasonForm.name) {
+            setError('Szezon név szükséges');
             return;
         }
 
@@ -192,7 +199,6 @@ export default function AdminPage() {
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
-                    leagueId: selectedLeague,
                     name: seasonForm.name,
                     startDate: seasonForm.startDate,
                     endDate: seasonForm.endDate,
@@ -203,7 +209,7 @@ export default function AdminPage() {
             
             setSeasonForm({ name: '', startDate: '', endDate: '' });
             // Refresh seasons
-            const refreshRes = await fetch(`/api/admin/seasons?leagueId=${selectedLeague}`, {
+            const refreshRes = await fetch('/api/admin/seasons', {
                 headers: getAuthHeaders(),
             });
             if (refreshRes.ok) {
@@ -248,44 +254,18 @@ export default function AdminPage() {
         }
     };
 
-    const handleAddTimeSlot = async () => {
-        if (!timeSlotForm.pitchId || !selectedSeason) {
-            setError('Pálya és szezon szükséges');
+    const handleAutoGenerateTimeSlots = async () => {
+        if (!selectedSeason) {
+            setError('Szezon kiválasztása szükséges az automatikus generáláshoz');
             return;
         }
 
-        try {
-            const res = await fetch('/api/admin/time-slots', {
-                method: 'POST',
-                headers: getAuthHeaders(),
-                body: JSON.stringify({
-                    seasonId: selectedSeason,
-                    pitchId: parseInt(timeSlotForm.pitchId),
-                    dayOfWeek: parseInt(timeSlotForm.dayOfWeek),
-                    startTime: timeSlotForm.startTime,
-                    endTime: timeSlotForm.endTime,
-                }),
-            });
+        const season = seasons.find(
+            (item) => String(item.id) === String(selectedSeason),
+        );
 
-            if (!res.ok) throw new Error('Hiba az időpont hozzáadásakor');
-            
-            setTimeSlotForm({ pitchId: '', dayOfWeek: 0, startTime: '17:00', endTime: '18:00' });
-            // Refresh time slots
-            const refreshRes = await fetch(`/api/admin/time-slots?seasonId=${selectedSeason}`, {
-                headers: getAuthHeaders(),
-            });
-            if (refreshRes.ok) {
-                const data = await refreshRes.json();
-                setTimeSlots(data.timeSlots || []);
-            }
-        } catch (err) {
-            setError(err.message);
-        }
-    };
-
-    const handleAutoGenerateTimeSlots = async () => {
-        if (!selectedSeason || !autoSlotForm.startDate || !autoSlotForm.endDate) {
-            setError('Szezon, kezdő és záró dátum szükséges az automatikus generáláshoz');
+        if (!season?.start_date || !season?.end_date) {
+            setError('A kiválasztott szezonhoz kezdő és záró dátum beállítása szükséges');
             return;
         }
 
@@ -298,8 +278,6 @@ export default function AdminPage() {
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
                     seasonId: selectedSeason,
-                    startDate: autoSlotForm.startDate,
-                    endDate: autoSlotForm.endDate,
                 }),
             });
 
@@ -324,6 +302,8 @@ export default function AdminPage() {
 
     const handleDeleteTimeSlot = async (timeSlotId) => {
         try {
+            setError('');
+            setSuccess('');
             const res = await fetch('/api/admin/time-slots', {
                 method: 'DELETE',
                 headers: getAuthHeaders(),
@@ -341,6 +321,47 @@ export default function AdminPage() {
         }
     };
 
+    const handleDeleteSeasonDates = async () => {
+        if (!selectedSeason) {
+            setError('Szezon kiválasztása szükséges');
+            return;
+        }
+
+        const seasonName = selectedSeasonDetails?.name || 'kiválasztott szezon';
+        const confirmed = window.confirm(
+            `Biztosan törölni szeretnéd a ${seasonName} szezon összes dátumát/időpontját? Ez visszafordíthatatlan művelet.`,
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        try {
+            setClearingSeasonDates(true);
+            setError('');
+            setSuccess('');
+
+            const res = await fetch('/api/admin/time-slots', {
+                method: 'DELETE',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ seasonId: selectedSeason }),
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || 'Hiba a szezon dátumainak törlésekor');
+            }
+
+            setTimeSlots([]);
+            setSchedules([]);
+            setSuccess(`Sikeres törlés: ${data.deletedTimeSlots || 0} időpont eltávolítva a szezonból.`);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setClearingSeasonDates(false);
+        }
+    };
+
     const handleGenerateSchedule = async () => {
         if (!selectedSeason) {
             setError('Szezon kiválasztása szükséges');
@@ -350,6 +371,7 @@ export default function AdminPage() {
         try {
             setScheduling(true);
             setError('');
+            setSuccess('');
             const res = await fetch('/api/admin/generate-schedule', {
                 method: 'POST',
                 headers: getAuthHeaders(),
@@ -360,6 +382,12 @@ export default function AdminPage() {
             if (!res.ok) {
                 throw new Error(data.error || 'Hiba az ütemezés generálása során');
             }
+
+            const generatedLeagueCount = data.generatedLeagueCount || 0;
+            const totalMatchCount = data.totalMatchCount || 0;
+            setSuccess(
+                `Sikeres ütemezés: ${generatedLeagueCount} liga, ${totalMatchCount} mérkőzés generálva.`,
+            );
 
             // Refresh schedules
             const refreshRes = await fetch(`/api/admin/generate-schedule?seasonId=${selectedSeason}`, {
@@ -373,6 +401,46 @@ export default function AdminPage() {
             setError(err.message);
         } finally {
             setScheduling(false);
+        }
+    };
+
+    const handleSeasonStatusChange = async (seasonId, status) => {
+        const season = seasons.find((item) => item.id === seasonId);
+        if (!season) {
+            return;
+        }
+
+        try {
+            setUpdatingSeasonStatusId(seasonId);
+            setError('');
+            setSuccess('');
+
+            const res = await fetch('/api/admin/seasons', {
+                method: 'PUT',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    seasonId,
+                    status,
+                    startDate: season.start_date,
+                    endDate: season.end_date,
+                }),
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || 'Hiba a szezon állapot frissítésekor');
+            }
+
+            setSeasons((prev) =>
+                prev.map((item) =>
+                    item.id === seasonId ? { ...item, status } : item,
+                ),
+            );
+            setSuccess('Szezon állapot frissítve.');
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setUpdatingSeasonStatusId(null);
         }
     };
 
@@ -459,6 +527,7 @@ export default function AdminPage() {
                 </div>
 
                 {error && <div className="admin-card error"><p>{error}</p></div>}
+                {success && <div className="admin-card success"><p>{success}</p></div>}
 
                 <div className="admin-tabs">
                     <button
@@ -513,15 +582,6 @@ export default function AdminPage() {
                         {activeTab === 'seasons' && (
                             <div className="admin-card">
                                 <h3>Szezonok kezelése</h3>
-                                
-                                <div className="league-selector">
-                                    <label>Liga kiválasztása:</label>
-                                    <select value={selectedLeague || ''} onChange={(e) => setSelectedLeague(e.target.value)}>
-                                        {leagues.map(league => (
-                                            <option key={league.id} value={league.id}>{league.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
 
                                 <div className="form-section">
                                     <h4>Új szezon létrehozása</h4>
@@ -562,7 +622,21 @@ export default function AdminPage() {
                                                 {seasons.map(season => (
                                                     <tr key={season.id} onClick={() => setSelectedSeason(season.id)} style={{cursor: 'pointer', backgroundColor: selectedSeason === season.id ? '#f0f0f0' : ''}}>
                                                         <td>{season.name}</td>
-                                                        <td>{season.status}</td>
+                                                        <td>
+                                                            <select
+                                                                className="status-select"
+                                                                value={season.status}
+                                                                onChange={(e) => handleSeasonStatusChange(season.id, e.target.value)}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                disabled={updatingSeasonStatusId === season.id}
+                                                            >
+                                                                <option value="setup">setup</option>
+                                                                <option value="team-preferences">team-preferences</option>
+                                                                <option value="generated">generated</option>
+                                                                <option value="active">active</option>
+                                                                <option value="completed">completed</option>
+                                                            </select>
+                                                        </td>
                                                         <td>{season.start_date || '-'}</td>
                                                         <td>{season.end_date || '-'}</td>
                                                     </tr>
@@ -602,49 +676,26 @@ export default function AdminPage() {
                                         <div className="form-section">
                                             <h4>Automatikus időpont generálás</h4>
                                             <p>Hétfő-péntek, 17:00-23:00, 1 órás blokkok (17-18, 18-19, 19-20, 20-21, 21-22, 22-23).</p>
-                                            <input
-                                                type="date"
-                                                value={autoSlotForm.startDate}
-                                                onChange={(e) => setAutoSlotForm({ ...autoSlotForm, startDate: e.target.value })}
-                                            />
-                                            <input
-                                                type="date"
-                                                value={autoSlotForm.endDate}
-                                                onChange={(e) => setAutoSlotForm({ ...autoSlotForm, endDate: e.target.value })}
-                                            />
+                                            <p>
+                                                Generálási időszak: {selectedSeasonDetails?.start_date || '-'} - {selectedSeasonDetails?.end_date || '-'}
+                                            </p>
                                             <button onClick={handleAutoGenerateTimeSlots} className="btn-primary" disabled={autoGeneratingSlots}>
                                                 {autoGeneratingSlots ? 'Generálás folyamatban...' : 'Időpontok automatikus generálása'}
                                             </button>
                                         </div>
 
-                                        <div className="form-section">
-                                            <h4>Új időpont hozzáadása</h4>
-                                            <select value={timeSlotForm.pitchId} onChange={(e) => setTimeSlotForm({ ...timeSlotForm, pitchId: e.target.value })}>
-                                                <option value="">Pálya kiválasztása</option>
-                                                {pitches.map(pitch => (
-                                                    <option key={pitch.id} value={pitch.id}>{pitch.name}</option>
-                                                ))}
-                                            </select>
-                                            <select value={timeSlotForm.dayOfWeek} onChange={(e) => setTimeSlotForm({ ...timeSlotForm, dayOfWeek: e.target.value })}>
-                                                {dayNames.map((day, index) => (
-                                                    <option key={index} value={index}>{day}</option>
-                                                ))}
-                                            </select>
-                                            <input 
-                                                type="time"
-                                                value={timeSlotForm.startTime}
-                                                onChange={(e) => setTimeSlotForm({ ...timeSlotForm, startTime: e.target.value })}
-                                            />
-                                            <input 
-                                                type="time"
-                                                value={timeSlotForm.endTime}
-                                                onChange={(e) => setTimeSlotForm({ ...timeSlotForm, endTime: e.target.value })}
-                                            />
-                                            <button onClick={handleAddTimeSlot} className="btn-primary">Időpont hozzáadása</button>
-                                        </div>
-
                                         <div className="slots-list">
                                             <h4>Konfigurálva időpontok ({timeSlots.length})</h4>
+                                            <div className="slots-actions">
+                                                <button
+                                                    type="button"
+                                                    className="btn-danger"
+                                                    onClick={handleDeleteSeasonDates}
+                                                    disabled={clearingSeasonDates || !selectedSeason}
+                                                >
+                                                    {clearingSeasonDates ? 'Törlés folyamatban...' : 'Összes dátum törlése ebből a szezonból'}
+                                                </button>
+                                            </div>
                                             {timeSlots.length === 0 ? (
                                                 <p>Nincsenek időpontok konfigurálva.</p>
                                             ) : (
@@ -693,6 +744,7 @@ export default function AdminPage() {
                                 ) : (
                                     <>
                                         <div className="schedule-info">
+                                            <p>Ütemezés a kiválasztott szezon minden ligájára készül el.</p>
                                             <p>Pályák konfigurálva: {pitches.length}</p>
                                             <p>Időpontok konfigurálva: {timeSlots.length}</p>
                                             <button 
@@ -711,6 +763,7 @@ export default function AdminPage() {
                                                     <thead>
                                                         <tr>
                                                             <th>Generálva</th>
+                                                            <th>Liga</th>
                                                             <th>Melégedettség %</th>
                                                             <th>Állapot</th>
                                                         </tr>
@@ -719,6 +772,7 @@ export default function AdminPage() {
                                                         {schedules.map(schedule => (
                                                             <tr key={schedule.id}>
                                                                 <td>{new Date(schedule.generatedAt).toLocaleString('hu-HU')}</td>
+                                                                <td>{schedule.leagueName || schedule.leagueId || '-'}</td>
                                                                 <td>{schedule.algorithmScore}%</td>
                                                                 <td>{schedule.status === 'current' ? '✓ Aktív' : 'Archiválva'}</td>
                                                             </tr>

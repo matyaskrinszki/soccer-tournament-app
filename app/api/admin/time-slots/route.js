@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { getDb, initializeDb } from "../../../../lib/db";
-import { requireAdmin } from "../../../../lib/auth";
+import { requireAdmin, requireCaptainOrAdmin } from "../../../../lib/auth";
 
 initializeDb();
 
 export async function GET(request) {
+    const user = await requireCaptainOrAdmin(request);
+    if (user instanceof NextResponse) {
+        return user;
+    }
+
     const url = new URL(request.url);
     const seasonId = url.searchParams.get("seasonId");
     const pitchId = url.searchParams.get("pitchId");
@@ -61,117 +66,234 @@ export async function GET(request) {
 
 export async function POST(request) {
     const user = await requireAdmin(request);
-    if (!user) {
-        return NextResponse.json(
-            { error: "Nincs jogosultságod" },
-            { status: 403 },
-        );
+    if (user instanceof NextResponse) {
+        return user;
     }
 
-    const body = await request.json();
-    const { seasonId, pitchId, dayOfWeek, startTime, endTime, slotDate } = body;
-
-    if (
-        !seasonId ||
-        !pitchId ||
-        dayOfWeek === undefined ||
-        !startTime ||
-        !endTime
-    ) {
-        return NextResponse.json(
-            { error: "Hiányzó kötelező mezők" },
-            { status: 400 },
-        );
-    }
-
-    return new Promise((resolve) => {
-        const db = getDb();
-
-        db.run(
-            `INSERT INTO time_slots (season_id, pitch_id, slot_date, day_of_week, start_time, end_time)
-             VALUES (?, ?, ?, ?, ?, ?)`,
-            [
-                seasonId,
-                pitchId,
-                slotDate || null,
-                dayOfWeek,
-                startTime,
-                endTime,
-            ],
-            function (err) {
-                if (err) {
-                    db.close();
-                    resolve(
-                        NextResponse.json(
-                            { error: "Hiba az időpont létrehozásakor" },
-                            { status: 500 },
-                        ),
-                    );
-                    return;
-                }
-
-                db.close();
-                resolve(
-                    NextResponse.json(
-                        { timeSlotId: this.lastID },
-                        { status: 201 },
-                    ),
-                );
-            },
-        );
-    });
+    return NextResponse.json(
+        {
+            error: "A kézi időpont létrehozás megszűnt. Használd az automatikus generálást a szezon dátumtartományára.",
+        },
+        { status: 410 },
+    );
 }
 
 export async function DELETE(request) {
     const user = await requireAdmin(request);
-    if (!user) {
-        return NextResponse.json(
-            { error: "Nincs jogosultságod" },
-            { status: 403 },
-        );
+    if (user instanceof NextResponse) {
+        return user;
     }
 
     const body = await request.json();
-    const { timeSlotId } = body;
+    const { timeSlotId, seasonId } = body;
 
-    if (!timeSlotId) {
+    if (!timeSlotId && !seasonId) {
         return NextResponse.json(
-            { error: "Időpont ID szükséges" },
+            { error: "Időpont ID vagy szezon ID szükséges" },
             { status: 400 },
         );
     }
 
+    // Single time slot delete
+    if (timeSlotId) {
+        return new Promise((resolve) => {
+            const db = getDb();
+
+            db.run(
+                `DELETE FROM time_slots WHERE id = ?`,
+                [timeSlotId],
+                function (err) {
+                    if (err) {
+                        db.close();
+                        resolve(
+                            NextResponse.json(
+                                { error: "Hiba az időpont törlésekor" },
+                                { status: 500 },
+                            ),
+                        );
+                        return;
+                    }
+
+                    if (this.changes === 0) {
+                        db.close();
+                        resolve(
+                            NextResponse.json(
+                                { error: "Időpont nem található" },
+                                { status: 404 },
+                            ),
+                        );
+                        return;
+                    }
+
+                    db.close();
+                    resolve(
+                        NextResponse.json({ success: true }, { status: 200 }),
+                    );
+                },
+            );
+        });
+    }
+
+    // Season-wide cleanup of dates/time slots and dependent generated data
     return new Promise((resolve) => {
         const db = getDb();
 
-        db.run(
-            `DELETE FROM time_slots WHERE id = ?`,
-            [timeSlotId],
-            function (err) {
-                if (err) {
+        db.get(
+            `SELECT COUNT(*) as count
+             FROM time_slots
+             WHERE season_id = ?`,
+            [seasonId],
+            (countErr, countRow) => {
+                if (countErr) {
                     db.close();
                     resolve(
                         NextResponse.json(
-                            { error: "Hiba az időpont törlésekor" },
+                            {
+                                error: "Hiba a szezonhoz tartozó időpontok lekérdezésekor",
+                            },
                             { status: 500 },
                         ),
                     );
                     return;
                 }
 
-                if (this.changes === 0) {
-                    db.close();
-                    resolve(
-                        NextResponse.json(
-                            { error: "Időpont nem található" },
-                            { status: 404 },
-                        ),
-                    );
-                    return;
-                }
+                const totalTimeSlots = countRow?.count || 0;
+                let resolved = false;
+                let deletedPreferences = 0;
+                let deletedScheduledMatches = 0;
+                let deletedScheduleRuns = 0;
+                let deletedTimeSlots = 0;
 
-                db.close();
-                resolve(NextResponse.json({ success: true }, { status: 200 }));
+                const failWithRollback = (errorMessage) => {
+                    if (resolved) return;
+                    resolved = true;
+                    db.run("ROLLBACK", () => {
+                        db.close();
+                        resolve(
+                            NextResponse.json(
+                                { error: errorMessage },
+                                { status: 500 },
+                            ),
+                        );
+                    });
+                };
+
+                db.serialize(() => {
+                    db.run("BEGIN TRANSACTION", (beginErr) => {
+                        if (beginErr) {
+                            if (resolved) return;
+                            resolved = true;
+                            db.close();
+                            resolve(
+                                NextResponse.json(
+                                    {
+                                        error: "Hiba a törlési tranzakció indításakor",
+                                    },
+                                    { status: 500 },
+                                ),
+                            );
+                            return;
+                        }
+
+                        db.run(
+                            `DELETE FROM team_availability_preferences
+                             WHERE season_id = ?`,
+                            [seasonId],
+                            function (prefErr) {
+                                if (prefErr) {
+                                    failWithRollback(
+                                        "Hiba a preferenciák törlésekor",
+                                    );
+                                    return;
+                                }
+                                deletedPreferences = this.changes || 0;
+
+                                db.run(
+                                    `DELETE FROM scheduled_matches
+                                     WHERE schedule_run_id IN (
+                                         SELECT id FROM schedule_runs
+                                         WHERE season_id = ?
+                                     )`,
+                                    [seasonId],
+                                    function (scheduledMatchesErr) {
+                                        if (scheduledMatchesErr) {
+                                            failWithRollback(
+                                                "Hiba az ütemezett mérkőzések törlésekor",
+                                            );
+                                            return;
+                                        }
+                                        deletedScheduledMatches =
+                                            this.changes || 0;
+
+                                        db.run(
+                                            `DELETE FROM schedule_runs
+                                             WHERE season_id = ?`,
+                                            [seasonId],
+                                            function (scheduleRunsErr) {
+                                                if (scheduleRunsErr) {
+                                                    failWithRollback(
+                                                        "Hiba az ütemezési futtatások törlésekor",
+                                                    );
+                                                    return;
+                                                }
+                                                deletedScheduleRuns =
+                                                    this.changes || 0;
+
+                                                db.run(
+                                                    `DELETE FROM time_slots
+                                                     WHERE season_id = ?`,
+                                                    [seasonId],
+                                                    function (timeSlotErr) {
+                                                        if (timeSlotErr) {
+                                                            failWithRollback(
+                                                                "Hiba a szezon időpontjainak törlésekor",
+                                                            );
+                                                            return;
+                                                        }
+                                                        deletedTimeSlots =
+                                                            this.changes || 0;
+
+                                                        db.run(
+                                                            "COMMIT",
+                                                            (commitErr) => {
+                                                                if (commitErr) {
+                                                                    failWithRollback(
+                                                                        "Hiba a törlési tranzakció lezárásakor",
+                                                                    );
+                                                                    return;
+                                                                }
+
+                                                                if (resolved)
+                                                                    return;
+                                                                resolved = true;
+                                                                db.close();
+                                                                resolve(
+                                                                    NextResponse.json(
+                                                                        {
+                                                                            success: true,
+                                                                            deletedTimeSlots,
+                                                                            deletedPreferences,
+                                                                            deletedScheduledMatches,
+                                                                            deletedScheduleRuns,
+                                                                            totalTimeSlots,
+                                                                        },
+                                                                        {
+                                                                            status: 200,
+                                                                        },
+                                                                    ),
+                                                                );
+                                                            },
+                                                        );
+                                                    },
+                                                );
+                                            },
+                                        );
+                                    },
+                                );
+                            },
+                        );
+                    });
+                });
             },
         );
     });

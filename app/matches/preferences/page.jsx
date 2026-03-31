@@ -1,68 +1,116 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useMemo } from 'react';
 import { getAuthHeaders } from '../../../lib/client-auth';
 import './preferences.css';
 
-const dayNames = ['Vasárnap', 'Hétfő', 'Kedd', 'Szerda', 'Csütörtök', 'Péntek', 'Szombat'];
+const WEEKDAYS = [
+  { index: 0, label: 'Hétfő' },
+  { index: 1, label: 'Kedd' },
+  { index: 2, label: 'Szerda' },
+  { index: 3, label: 'Csütörtök' },
+  { index: 4, label: 'Péntek' },
+];
+
+const START_TIMES = ['17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
+const MAX_UNAVAILABLE = 8;
+
+function buildCellKey(dayOfWeek, startTime) {
+  return `${dayOfWeek}|${startTime}`;
+}
+
+function cyclePreference(currentValue, hasReachedUnavailableLimit) {
+  if (currentValue === 'preferred') {
+    if (hasReachedUnavailableLimit) return null;
+    return 'unavailable';
+  }
+  if (currentValue === 'unavailable') return null;
+  return 'preferred';
+}
 
 export default function PreferencesPage() {
-  const router = useRouter();
   const [isHydrated, setIsHydrated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
-  
-  // State for seasons, teams, and preferences
+
   const [seasons, setSeasons] = useState([]);
   const [userTeams, setUserTeams] = useState([]);
   const [selectedSeason, setSelectedSeason] = useState(null);
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [timeSlots, setTimeSlots] = useState([]);
-  const [preferences, setPreferences] = useState({});
+  const [weeklyPreferences, setWeeklyPreferences] = useState({});
   const [saving, setSaving] = useState(false);
 
-  // Set hydrated flag on mount
+  const availableWeeklyKeys = useMemo(() => {
+    const keys = new Set();
+
+    (timeSlots || []).forEach((slot) => {
+      const dayOfWeek = Number(slot.dayOfWeek);
+      if (!slot.slotDate || dayOfWeek < 0 || dayOfWeek > 4) {
+        return;
+      }
+
+      if (!START_TIMES.includes(slot.startTime)) {
+        return;
+      }
+
+      keys.add(buildCellKey(dayOfWeek, slot.startTime));
+    });
+
+    return keys;
+  }, [timeSlots]);
+
+  const preferredCount = useMemo(
+    () => Object.values(weeklyPreferences).filter((pref) => pref === 'preferred').length,
+    [weeklyPreferences],
+  );
+
+  const unavailableCount = useMemo(
+    () => Object.values(weeklyPreferences).filter((pref) => pref === 'unavailable').length,
+    [weeklyPreferences],
+  );
+
+  const adaptivePreferredMin = Math.min(8, availableWeeklyKeys.size);
+
   useEffect(() => {
     setIsHydrated(true);
   }, []);
 
-  // Fetch user's teams and active seasons
   useEffect(() => {
     if (!isHydrated) return;
+
     const fetchInitialData = async () => {
       try {
         setLoading(true);
-        
-        // Get user's teams
+
         const teamsRes = await fetch('/api/players/me/teams', {
           headers: getAuthHeaders(),
         });
         if (teamsRes.ok) {
           const teamsData = await teamsRes.json();
-          setUserTeams(teamsData);
+          setUserTeams(teamsData || []);
         }
 
-        // Get seasons that are in team-preferences status
         const seasonsRes = await fetch('/api/admin/seasons', {
           headers: getAuthHeaders(),
         });
         if (seasonsRes.ok) {
           const seasonsData = await seasonsRes.json();
-          const seasonsList = seasonsData.seasons || seasonsData;
-          // Filter for team-preferences status
-          const activeSeasons = seasonsList.filter(s => s.status === 'team-preferences');
+          const seasonsList = seasonsData.seasons || seasonsData || [];
+          const activeSeasons = seasonsList.filter(
+            (season) => season.status === 'team-preferences',
+          );
+
           setSeasons(activeSeasons);
           if (activeSeasons.length > 0) {
             setSelectedSeason(activeSeasons[0].id);
           }
         }
-
-        setLoading(false);
       } catch (err) {
         console.error('Error fetching initial data:', err);
         setError('Nem sikerült az adatok betöltése');
+      } finally {
         setLoading(false);
       }
     };
@@ -70,37 +118,76 @@ export default function PreferencesPage() {
     fetchInitialData();
   }, [isHydrated]);
 
-  // Fetch time slots and existing preferences when season/team changes
   useEffect(() => {
     if (!selectedSeason || !selectedTeam) return;
 
     const fetchSlotsAndPreferences = async () => {
       try {
-        // Get time slots for season
-        const slotsRes = await fetch(`/api/admin/time-slots?seasonId=${selectedSeason}`, {
-          headers: getAuthHeaders(),
-        });
+        const [slotsRes, prefsRes] = await Promise.all([
+          fetch(`/api/admin/time-slots?seasonId=${selectedSeason}`, {
+            headers: getAuthHeaders(),
+          }),
+          fetch(
+            `/api/teams/preferences?seasonId=${selectedSeason}&teamId=${selectedTeam}`,
+            {
+              headers: getAuthHeaders(),
+            },
+          ),
+        ]);
+
+        let slotsList = [];
         if (slotsRes.ok) {
           const slotsData = await slotsRes.json();
-          const slotsList = slotsData.timeSlots || slotsData;
-          setTimeSlots(slotsList);
+          slotsList = slotsData.timeSlots || slotsData || [];
+        }
+        setTimeSlots(slotsList);
+
+        if (!prefsRes.ok) {
+          setWeeklyPreferences({});
+          return;
         }
 
-        // Get team's existing preferences
-        const prefsRes = await fetch(
-          `/api/teams/preferences?seasonId=${selectedSeason}&teamId=${selectedTeam}`,
-          {
-            headers: getAuthHeaders(),
+        const prefsData = await prefsRes.json();
+        const prefsList = prefsData.preferences || [];
+        const slotById = new Map((slotsList || []).map((slot) => [Number(slot.id), slot]));
+        const votes = new Map();
+
+        prefsList.forEach((pref) => {
+          const slot = slotById.get(Number(pref.timeSlotId));
+          const dayOfWeek = Number(slot?.dayOfWeek);
+
+          if (!slot?.slotDate || dayOfWeek < 0 || dayOfWeek > 4) {
+            return;
           }
-        );
-        if (prefsRes.ok) {
-          const prefsData = await prefsRes.json();
-          const prefsMap = {};
-          prefsData.forEach((pref) => {
-            prefsMap[pref.time_slot_id] = pref.preference;
-          });
-          setPreferences(prefsMap);
-        }
+
+          if (!START_TIMES.includes(slot.startTime)) {
+            return;
+          }
+
+          const key = buildCellKey(dayOfWeek, slot.startTime);
+          if (!votes.has(key)) {
+            votes.set(key, { preferred: 0, unavailable: 0 });
+          }
+
+          if (pref.preference === 'preferred') {
+            votes.get(key).preferred += 1;
+          }
+
+          if (pref.preference === 'unavailable') {
+            votes.get(key).unavailable += 1;
+          }
+        });
+
+        const nextWeeklyPreferences = {};
+        votes.forEach((value, key) => {
+          if (value.preferred > value.unavailable) {
+            nextWeeklyPreferences[key] = 'preferred';
+          } else if (value.unavailable > value.preferred) {
+            nextWeeklyPreferences[key] = 'unavailable';
+          }
+        });
+
+        setWeeklyPreferences(nextWeeklyPreferences);
       } catch (err) {
         console.error('Error fetching slots and preferences:', err);
         setError('Nem sikerült az időpontok betöltése');
@@ -110,23 +197,52 @@ export default function PreferencesPage() {
     fetchSlotsAndPreferences();
   }, [selectedSeason, selectedTeam]);
 
-  // Handle preference toggle
-  const handlePreferenceChange = (timeSlotId, newPreference) => {
-    setPreferences((prev) => {
+  const handleSquareClick = (dayOfWeek, startTime) => {
+    const key = buildCellKey(dayOfWeek, startTime);
+
+    if (!availableWeeklyKeys.has(key)) {
+      return;
+    }
+
+    setError(null);
+    setWeeklyPreferences((prev) => {
       const updated = { ...prev };
-      if (updated[timeSlotId] === newPreference) {
-        delete updated[timeSlotId];
+      const currentPreference = updated[key];
+
+      const currentUnavailableCount = Object.values(prev).filter(
+        (pref) => pref === 'unavailable',
+      ).length;
+      const hasReachedUnavailableLimit = currentUnavailableCount >= MAX_UNAVAILABLE;
+      const nextPreference = cyclePreference(currentPreference, hasReachedUnavailableLimit);
+
+      if (!nextPreference) {
+        delete updated[key];
       } else {
-        updated[timeSlotId] = newPreference;
+        updated[key] = nextPreference;
       }
+
       return updated;
     });
   };
 
-  // Save preferences
   const handleSavePreferences = async () => {
     if (!selectedTeam || !selectedSeason) {
       setError('Válassz csapatot és szezont');
+      return;
+    }
+
+    if (availableWeeklyKeys.size === 0) {
+      setError('Nincsenek dátumhoz kötött időpontok a kiválasztott szezonban.');
+      return;
+    }
+
+    if (preferredCount < adaptivePreferredMin) {
+      setError(`Legalább ${adaptivePreferredMin} kedvelt időpontot kell megjelölni.`);
+      return;
+    }
+
+    if (unavailableCount > MAX_UNAVAILABLE) {
+      setError(`Legfeljebb ${MAX_UNAVAILABLE} kerülendő időpont jelölhető.`);
       return;
     }
 
@@ -135,25 +251,39 @@ export default function PreferencesPage() {
     setSuccess(null);
 
     try {
-      // Save each preference
-      for (const [timeSlotId, preference] of Object.entries(preferences)) {
-        await fetch('/api/teams/preferences', {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          body: JSON.stringify({
-            seasonId: selectedSeason,
-            teamId: selectedTeam,
-            timeSlotId: parseInt(timeSlotId),
+      const recurringPreferences = Object.entries(weeklyPreferences).map(
+        ([key, preference]) => {
+          const [dayOfWeek, startTime] = key.split('|');
+          return {
+            dayOfWeek: Number(dayOfWeek),
+            startTime,
             preference,
-          }),
-        });
+          };
+        },
+      );
+
+      const response = await fetch('/api/teams/preferences', {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          seasonId: selectedSeason,
+          teamId: selectedTeam,
+          recurringPreferences,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || 'Nem sikerült a preferenciák mentése');
       }
 
-      setSuccess('Preferenciák sikeresen elmentve!');
+      setSuccess(
+        `Preferenciák mentve: kedvelt ${preferredCount}, kerülendő ${unavailableCount}.`,
+      );
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       console.error('Error saving preferences:', err);
-      setError('Nem sikerült a preferenciák mentése');
+      setError(err.message || 'Nem sikerült a preferenciák mentése');
     } finally {
       setSaving(false);
     }
@@ -205,7 +335,7 @@ export default function PreferencesPage() {
         <div className="preferences-header">
           <h1>Mérkőzésidőpont Preferenciák</h1>
           <p className="preferences-subtitle">
-            Jelöld ki az időpontokat, amelyekben szeretne játszani a csapatod!
+            Egy heti mintát adsz meg, amit a rendszer a szezon minden hetére alkalmaz.
           </p>
         </div>
 
@@ -213,7 +343,6 @@ export default function PreferencesPage() {
         {success && <div className="preferences-card success">{success}</div>}
 
         <div className="preferences-card">
-          {/* Season and Team Selection */}
           <div className="selector-section">
             <div className="selector-group">
               <label htmlFor="season-select">Szezon:</label>
@@ -222,7 +351,7 @@ export default function PreferencesPage() {
                 value={selectedSeason || ''}
                 onChange={(e) => {
                   setSelectedSeason(parseInt(e.target.value));
-                  setPreferences({});
+                  setWeeklyPreferences({});
                 }}
               >
                 <option value="">-- Válassz szezont --</option>
@@ -241,7 +370,7 @@ export default function PreferencesPage() {
                 value={selectedTeam || ''}
                 onChange={(e) => {
                   setSelectedTeam(parseInt(e.target.value));
-                  setPreferences({});
+                  setWeeklyPreferences({});
                 }}
               >
                 <option value="">-- Válassz csapatot --</option>
@@ -254,61 +383,89 @@ export default function PreferencesPage() {
             </div>
           </div>
 
-          {/* Time Slots Grid */}
           {selectedSeason && selectedTeam && timeSlots.length > 0 && (
             <>
               <div className="time-slots-section">
-                <h3>Elérhető időpontok</h3>
-                <div className="time-slots-grid">
-                  {timeSlots.map((slot) => (
-                    <div key={slot.id} className="time-slot-card">
-                      <div className="slot-header">
-                        <div className="slot-day">{dayNames[slot.dayOfWeek]}</div>
-                        <div className="slot-time">
-                          {slot.startTime} - {slot.endTime}
-                        </div>
-                      </div>
-                      <div className="slot-location">{slot.pitchName || `Pálya ${slot.pitchId}`}</div>
-                      <div className="slot-preferences">
-                        <button
-                          className={`pref-btn preferred ${
-                            preferences[slot.id] === 'preferred' ? 'active' : ''
-                          }`}
-                          onClick={() => handlePreferenceChange(slot.id, 'preferred')}
-                          title="Játszani szeretnénk"
-                        >
-                          ✓ Jó
-                        </button>
-                        <button
-                          className={`pref-btn neutral ${
-                            preferences[slot.id] === 'neutral' ? 'active' : ''
-                          }`}
-                          onClick={() => handlePreferenceChange(slot.id, 'neutral')}
-                          title="Közömbös"
-                        >
-                          = Mindegy
-                        </button>
-                        <button
-                          className={`pref-btn unavailable ${
-                            preferences[slot.id] === 'unavailable' ? 'active' : ''
-                          }`}
-                          onClick={() => handlePreferenceChange(slot.id, 'unavailable')}
-                          title="Nem tudunk játszani"
-                        >
-                          ✗ Nem
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                <h3>Ismétlődő heti preferencia minta</h3>
+                <p className="template-hint">
+                  Kattintás: semleges -&gt; kedvelt (zöld) -&gt; kerülendő (piros) -&gt; semleges. Ha a
+                  kerülendő limit betelt, a kedvelt mező következő kattintásra semlegesre vált.
+                </p>
+
+                <div className="preference-rules">
+                  <span className={`rule-badge ${preferredCount >= adaptivePreferredMin ? 'ok' : 'warn'}`}>
+                    Kedvelt: {preferredCount} / minimum {adaptivePreferredMin}
+                  </span>
+                  <span className={`rule-badge ${unavailableCount <= MAX_UNAVAILABLE ? 'ok' : 'warn'}`}>
+                    Kerülendő: {unavailableCount} / maximum {MAX_UNAVAILABLE}
+                  </span>
+                </div>
+
+                <div className="single-week-card">
+                  <div className="calendar-table-wrap">
+                    <table className="calendar-table recurring">
+                      <colgroup>
+                        <col className="time-col" />
+                        {WEEKDAYS.map((day) => (
+                          <col key={`col-${day.index}`} className="day-col" />
+                        ))}
+                      </colgroup>
+                      <thead>
+                        <tr>
+                          <th>Idő</th>
+                          {WEEKDAYS.map((day) => (
+                            <th key={day.index}>{day.label}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {START_TIMES.map((startTime) => (
+                          <tr key={startTime}>
+                            <td className="time-cell">{startTime}</td>
+                            {WEEKDAYS.map((day) => {
+                              const key = buildCellKey(day.index, startTime);
+                              const value = weeklyPreferences[key] || 'neutral';
+                              const isAvailable = availableWeeklyKeys.has(key);
+
+                              return (
+                                <td key={key}>
+                                  <button
+                                    type="button"
+                                    className={`pref-square ${value}`}
+                                    onClick={() => handleSquareClick(day.index, startTime)}
+                                    disabled={!isAvailable}
+                                    title={
+                                      !isAvailable
+                                        ? 'Nincs elérhető idopont ezen a napon/idoben'
+                                        : value === 'preferred'
+                                          ? 'Kedvelt idopont'
+                                          : value === 'unavailable'
+                                            ? 'Kerulendo idopont'
+                                            : 'Nincs preferencia'
+                                    }
+                                  >
+                                    &nbsp;
+                                  </button>
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
 
-              {/* Save Button */}
               <div className="save-section">
                 <button
                   className="btn-save"
                   onClick={handleSavePreferences}
-                  disabled={saving}
+                  disabled={
+                    saving ||
+                    preferredCount < adaptivePreferredMin ||
+                    unavailableCount > MAX_UNAVAILABLE
+                  }
                 >
                   {saving ? 'Mentés...' : 'Preferenciák Mentése'}
                 </button>

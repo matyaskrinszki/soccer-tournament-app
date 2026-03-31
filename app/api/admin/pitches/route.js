@@ -45,11 +45,8 @@ export async function GET(request) {
 
 export async function POST(request) {
     const user = await requireAdmin(request);
-    if (!user) {
-        return NextResponse.json(
-            { error: "Nincs jogosultságod" },
-            { status: 403 },
-        );
+    if (user instanceof NextResponse) {
+        return user;
     }
 
     const body = await request.json();
@@ -95,11 +92,8 @@ export async function POST(request) {
 
 export async function DELETE(request) {
     const user = await requireAdmin(request);
-    if (!user) {
-        return NextResponse.json(
-            { error: "Nincs jogosultságod" },
-            { status: 403 },
-        );
+    if (user instanceof NextResponse) {
+        return user;
     }
 
     const body = await request.json();
