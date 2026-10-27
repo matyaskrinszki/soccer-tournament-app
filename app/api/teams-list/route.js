@@ -1,9 +1,9 @@
-import { NextResponse } from 'next/server';
-import { getDb, initializeDb } from '../../../lib/db';
+import { NextResponse } from "next/server";
+import { getDb, initializeDb } from "../../../lib/db";
 
 initializeDb();
 
-export async function GET(request) {
+export async function GET() {
     return new Promise((resolve) => {
         const db = getDb();
 
@@ -19,7 +19,12 @@ export async function GET(request) {
             (err, rows) => {
                 db.close();
                 if (err) {
-                    resolve(NextResponse.json({ error: 'Hiba történt a csapatok lekérdezésekor' }, { status: 500 }));
+                    resolve(
+                        NextResponse.json(
+                            { error: "Hiba történt a csapatok lekérdezésekor" },
+                            { status: 500 },
+                        ),
+                    );
                     return;
                 }
 
@@ -39,7 +44,7 @@ export async function GET(request) {
                 }));
 
                 resolve(NextResponse.json({ teams }, { status: 200 }));
-            }
+            },
         );
     });
 }

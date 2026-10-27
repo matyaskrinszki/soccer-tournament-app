@@ -14,7 +14,6 @@ export async function POST(request, context) {
     let invitationId = context?.params?.id;
 
     if (!invitationId) {
-        // Fallback: extract from URL path /api/recruitment-invitations/123
         const pathParts = new URL(request.url).pathname
             .split("/")
             .filter(Boolean);

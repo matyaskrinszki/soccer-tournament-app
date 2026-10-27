@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server';
-import { getDb, initializeDb } from '../../../lib/db';
+import { NextResponse } from "next/server";
+import { getDb, initializeDb } from "../../../lib/db";
 
 initializeDb();
 
 export async function GET(request) {
     const { searchParams } = new URL(request.url);
-    const email = searchParams.get('email');
+    const email = searchParams.get("email");
 
     return new Promise((resolve) => {
         const db = getDb();
@@ -21,12 +21,24 @@ export async function GET(request) {
                 (err, row) => {
                     db.close();
                     if (err) {
-                        resolve(NextResponse.json({ error: 'Hiba történt a játékos lekérdezésekor' }, { status: 500 }));
+                        resolve(
+                            NextResponse.json(
+                                {
+                                    error: "Hiba történt a játékos lekérdezésekor",
+                                },
+                                { status: 500 },
+                            ),
+                        );
                         return;
                     }
 
                     if (!row) {
-                        resolve(NextResponse.json({ error: 'A játékos nem található' }, { status: 404 }));
+                        resolve(
+                            NextResponse.json(
+                                { error: "A játékos nem található" },
+                                { status: 404 },
+                            ),
+                        );
                         return;
                     }
 
@@ -46,10 +58,10 @@ export async function GET(request) {
                                         : null,
                                 },
                             },
-                            { status: 200 }
-                        )
+                            { status: 200 },
+                        ),
                     );
-                }
+                },
             );
             return;
         }
@@ -64,7 +76,14 @@ export async function GET(request) {
             (err, rows) => {
                 db.close();
                 if (err) {
-                    resolve(NextResponse.json({ error: 'Hiba történt a játékosok lekérdezésekor' }, { status: 500 }));
+                    resolve(
+                        NextResponse.json(
+                            {
+                                error: "Hiba történt a játékosok lekérdezésekor",
+                            },
+                            { status: 500 },
+                        ),
+                    );
                     return;
                 }
 
@@ -82,7 +101,7 @@ export async function GET(request) {
                 }));
 
                 resolve(NextResponse.json({ players }, { status: 200 }));
-            }
+            },
         );
     });
 }

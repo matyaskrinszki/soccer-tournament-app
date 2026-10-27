@@ -32,13 +32,11 @@ export default function StandingsPage() {
 
     const handleAuthSuccess = (email, _token, info) => {
         if (info) {
-            // Signup successful - show verification message
             setSuccessMessage(info.message);
             setShowAuthModal(false);
             setTimeout(() => setSuccessMessage(''), 5000);
             return;
         }
-        // Login successful
         setIsLoggedIn(true);
         setUserEmail(email);
         setShowAuthModal(false);
@@ -184,7 +182,7 @@ export default function StandingsPage() {
                     onSuccess={handleAuthSuccess}
                 />
             )}
-
+            { /* Move styling into css */ }
             {successMessage && (
                 <div style={{
                     position: 'fixed',

@@ -109,6 +109,13 @@ export default function PlayersBrowsePage() {
 
             setCurrentPlayerId(playerId);
 
+            /*
+                Check if section can be made simpler by using a single API call
+                that returns player's team and captaincy info together with player details, 
+                instead of having to fetch teams list and find the captaincy info on the client side. 
+                This would also reduce the amount of data transferred, 
+                since we don't need the whole teams list on the client side.
+            */
             try {
                 const res = await fetch('/api/teams-list');
                 const data = await res.json();
@@ -191,9 +198,8 @@ export default function PlayersBrowsePage() {
                 throw new Error(data.error || 'Nem sikerült a meghívót elküldeni');
             }
 
-            // Add player to invited list
             setInvitedPlayerIds(prev => [...prev, player.id]);
-            // Show success state
+            
             setSuccessRecruitingId(player.id);
         } catch (err) {
             setRecruitError(err.message);
@@ -258,6 +264,7 @@ export default function PlayersBrowsePage() {
                                         )}
                                     </div>
                                 </Link>
+                                { /* Check successRecruitingId necessity */ }
                                 {isLoggedIn && isCaptain && !player.team && (!invitedPlayerIds.includes(player.id) || successRecruitingId === player.id) && (
                                     <button
                                         type="button"

@@ -14,7 +14,6 @@ export async function POST(request, context) {
     let requestId = context?.params?.id;
 
     if (!requestId) {
-        // Fallback: extract from URL path /api/join-requests/123
         const pathParts = new URL(request.url).pathname
             .split("/")
             .filter(Boolean);

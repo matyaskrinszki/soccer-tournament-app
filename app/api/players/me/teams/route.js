@@ -29,10 +29,10 @@ export async function GET(request) {
             // Get teams where this player is the captain
             db.all(
                 `SELECT t.id, t.name, t.league_id, l.name as league_name
-         FROM teams t
-         LEFT JOIN leagues l ON l.id = t.league_id
-         WHERE t.captain_player_id = ?
-         ORDER BY t.name`,
+                FROM teams t
+                LEFT JOIN leagues l ON l.id = t.league_id
+                WHERE t.captain_player_id = ?
+                ORDER BY t.name`,
                 [playerId],
                 (err, rows) => {
                     console.log(

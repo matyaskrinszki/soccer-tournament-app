@@ -263,6 +263,15 @@ export async function POST(request) {
                     teamPreferences,
                 });
 
+                if (!result.success) {
+                    throw {
+                        type: "generation-failure",
+                        leagueId,
+                        matchCount: result.matchCount,
+                        reason: result.reason,
+                    };
+                }
+
                 const validation = validateSchedule(result.schedule, timeSlots);
                 if (!validation.isValid) {
                     throw {
@@ -337,6 +346,21 @@ export async function POST(request) {
                 await dbRun(db, "ROLLBACK");
             } catch {
                 // Ignore rollback errors and return the original failure.
+            }
+
+            if (innerErr?.type === "generation-failure") {
+                let errorMessage = `A(z) ${innerErr.leagueId} ligához nem sikerült ütemezést generálni.`;
+                if (innerErr.reason === "not-enough-time-slots") {
+                    errorMessage = `A(z) ${innerErr.leagueId} ligához nem sikerült ütemezést generálni: ${innerErr.matchCount} mérkőzéshez nincs elég időpont.`;
+                } else if (innerErr.reason === "no-valid-assignment-found") {
+                    errorMessage = `A(z) ${innerErr.leagueId} ligához nem sikerült ütemezést generálni: Nem található érvényes ütemezés.`;
+                }
+                return NextResponse.json(
+                    {
+                        error: errorMessage,
+                    },
+                    { status: 422 },
+                );
             }
 
             if (innerErr?.type === "validation") {

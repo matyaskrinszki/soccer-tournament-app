@@ -98,7 +98,6 @@ export async function GET(request, context) {
 }
 
 export async function PUT(request, context) {
-    // Require authentication
     const user = await requireAuth(request);
     if (user instanceof NextResponse) {
         return user;
@@ -118,7 +117,6 @@ export async function PUT(request, context) {
         );
     }
 
-    // Verify user can access this player resource
     if (!canAccessPlayerResource(user, parseInt(id))) {
         return NextResponse.json(
             { error: "Csak a saját profilodat frissítheted" },

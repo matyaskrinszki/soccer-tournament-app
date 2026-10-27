@@ -8,7 +8,6 @@ initializeDb();
 
 const JWT_SECRET = process.env.JWT_SECRET || "mysupersecretkey";
 
-// -- Ask Copilot why is this function async and why do we need to return a Promise in this case --
 export async function POST(request) {
     try {
         const { email, password } = await request.json();
@@ -63,7 +62,7 @@ export async function POST(request) {
                     // Create player
                     db.run(
                         "INSERT INTO players (email, password, name, team_id) VALUES (?, ?, ?, NULL)",
-                        [email, hashedPassword, email.split("@")[0]], // -- Ask Copilot to explain why we use the part before @ as the name and not faker
+                        [email, hashedPassword, email.split("@")[0]],
                         function (err) {
                             if (err) {
                                 db.close();

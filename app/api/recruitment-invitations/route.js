@@ -31,7 +31,7 @@ export async function GET(request) {
                 resolve(
                     NextResponse.json(
                         {
-                            error: "Csak a csapatkapitány lekérheti a meghívókat",
+                            error: "Csak a csapatkapitány kérheti le a meghívókat",
                         },
                         { status: 403 },
                     ),
@@ -105,7 +105,6 @@ export async function POST(request) {
             }
         }
 
-        // Verify team and check if player exists and is not already in a team
         // Verify team and check if player exists and is not already in a team
         db.get(
             "SELECT id FROM teams WHERE id = ?",
@@ -198,7 +197,7 @@ export async function POST(request) {
                                     resolve(
                                         NextResponse.json(
                                             {
-                                                error: "Már van függőben lévő meghívó erre a játékosnak erre a csapatra",
+                                                error: "Már van függőben lévő meghívó ennek a játékosnak erre a csapatra",
                                             },
                                             { status: 400 },
                                         ),

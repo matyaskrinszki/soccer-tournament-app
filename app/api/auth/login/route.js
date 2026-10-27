@@ -8,7 +8,6 @@ initializeDb();
 
 const JWT_SECRET = process.env.JWT_SECRET || "mysupersecretkey";
 
-// -- Ask Copilot why is this function async and why do we need to return a Promise in this case --
 export async function POST(request) {
     try {
         const { email, password } = await request.json();
@@ -26,7 +25,6 @@ export async function POST(request) {
 
         const db = getDb();
 
-        // -- Ask Copilot what is a Promise and how to use it in this case --
         return new Promise((resolve) => {
             db.get(
                 "SELECT id, password, role FROM players WHERE email = ?",

@@ -46,6 +46,12 @@ export default function AdminPage() {
     const [autoGeneratingSlots, setAutoGeneratingSlots] = useState(false);
     const [clearingSeasonDates, setClearingSeasonDates] = useState(false);
     const [updatingSeasonStatusId, setUpdatingSeasonStatusId] = useState(null);
+
+    // Dev/demo: seeding test preferences
+    const [leagues, setLeagues] = useState([]);
+    const [seedLeagueId, setSeedLeagueId] = useState('all');
+    const [seedingPreferences, setSeedingPreferences] = useState(false);
+
     const selectedSeasonDetails = seasons.find(
         (season) => String(season.id) === String(selectedSeason),
     );
@@ -155,6 +161,24 @@ export default function AdminPage() {
         };
 
         fetchSeasons();
+    }, [isHydrated, activeTab]);
+
+    // Leagues for the test-preference seeding dropdown (seasons tab only)
+    useEffect(() => {
+        if (!isHydrated || activeTab !== 'seasons') return;
+
+        const fetchLeagues = async () => {
+            try {
+                const res = await fetch('/api/leagues');
+                if (!res.ok) throw new Error('Hiba a ligák lekérdezésekor');
+                const data = await res.json();
+                setLeagues(data.leagues || []);
+            } catch (err) {
+                console.error('Leagues fetch error:', err);
+            }
+        };
+
+        fetchLeagues();
     }, [isHydrated, activeTab]);
 
     useEffect(() => {
@@ -404,6 +428,45 @@ export default function AdminPage() {
         }
     };
 
+    const handleSeedPreferences = async () => {
+        if (!selectedSeason) {
+            setError('Szezon kiválasztása szükséges');
+            return;
+        }
+
+        const leagueLabel =
+            seedLeagueId === 'all'
+                ? 'az összes liga'
+                : leagues.find((league) => league.id === seedLeagueId)?.name || seedLeagueId;
+        const confirmed = window.confirm(
+            `Ez felülírja ${leagueLabel} csapatainak meglévő preferenciáit a kiválasztott szezonban. Folytatod?`,
+        );
+        if (!confirmed) return;
+
+        try {
+            setSeedingPreferences(true);
+            setError('');
+            setSuccess('');
+
+            const res = await fetch('/api/admin/seed-preferences', {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({ seasonId: selectedSeason, leagueId: seedLeagueId }),
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                throw new Error(data.error || 'Hiba a teszt preferenciák feltöltésekor');
+            }
+
+            setSuccess(`Teszt preferenciák feltöltve: ${data.teamCount} csapat (${data.seasonName}).`);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setSeedingPreferences(false);
+        }
+    };
+
     const handleSeasonStatusChange = async (seasonId, status) => {
         const season = seasons.find((item) => item.id === seasonId);
         if (!season) {
@@ -644,6 +707,41 @@ export default function AdminPage() {
                                             </tbody>
                                         </table>
                                     )}
+                                </div>
+
+                                {/* Dev/demo tool: random valid preferences for testing schedule generation */}
+                                <div className="form-section">
+                                    <h4>Teszt preferenciák feltöltése (fejlesztéshez)</h4>
+                                    <p>
+                                        Kiválasztott szezon: <strong>{selectedSeasonDetails?.name || '-'}</strong>
+                                    </p>
+                                    <p>
+                                        Minden csapat véletlenszerű, de érvényes preferenciákat kap (legalább 8 kedvelt,
+                                        legfeljebb 8 kerülendő időpont). A meglévő preferenciák felülíródnak.
+                                        Előfeltétel: a szezonhoz már legyenek generált időpontok.
+                                    </p>
+                                    <p>
+                                        Ütemezéshez az „Összes liga” kell: a generálás minden legalább 2 csapatos ligát
+                                        egyszerre ütemez.
+                                    </p>
+                                    <select
+                                        value={seedLeagueId}
+                                        onChange={(e) => setSeedLeagueId(e.target.value)}
+                                    >
+                                        <option value="all">Összes liga</option>
+                                        {leagues.map((league) => (
+                                            <option key={league.id} value={league.id}>
+                                                {league.name} ({league.teams?.length ?? 0} csapat)
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <button
+                                        onClick={handleSeedPreferences}
+                                        className="btn-primary"
+                                        disabled={!selectedSeason || seedingPreferences}
+                                    >
+                                        {seedingPreferences ? 'Feltöltés folyamatban...' : 'Teszt preferenciák feltöltése'}
+                                    </button>
                                 </div>
                             </div>
                         )}
