@@ -5,6 +5,11 @@ import { requireAdmin } from "../../../../lib/auth";
 initializeDb();
 
 export async function GET(request) {
+    const user = await requireAdmin(request);
+    if (user instanceof NextResponse) {
+        return user;
+    }
+
     const url = new URL(request.url);
     const seasonId = url.searchParams.get("seasonId");
 
