@@ -163,6 +163,8 @@ export async function POST(request) {
             recurringOptionKeys.size,
         );
 
+        let currentFreeSlots = timeSlots;
+
         await dbRun(db, "BEGIN TRANSACTION");
         try {
             const generationResults = [];
@@ -259,7 +261,7 @@ export async function POST(request) {
 
                 const result = generateSchedule({
                     teamIds,
-                    timeSlots,
+                    timeSlots: currentFreeSlots,
                     teamPreferences,
                 });
 
@@ -272,7 +274,10 @@ export async function POST(request) {
                     };
                 }
 
-                const validation = validateSchedule(result.schedule, timeSlots);
+                const validation = validateSchedule(
+                    result.schedule,
+                    currentFreeSlots,
+                );
                 if (!validation.isValid) {
                     throw {
                         type: "validation",
@@ -280,6 +285,12 @@ export async function POST(request) {
                         conflicts: validation.conflicts,
                     };
                 }
+
+                currentFreeSlots = currentFreeSlots.filter((slot) => {
+                    return !result.schedule.some(
+                        (match) => match.timeSlotId === slot.id,
+                    );
+                });
 
                 await dbRun(
                     db,
@@ -387,6 +398,7 @@ export async function POST(request) {
                 );
             }
 
+            console.error(innerErr);
             return NextResponse.json(
                 { error: "Hiba az ütemezés mentésekor" },
                 { status: 500 },
