@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getDb, initializeDb } from "../../../../lib/db";
 import { validateAuth } from "../../../../lib/validation";
-import { requireAuth, canAccessPlayerResource } from "../../../../lib/auth";
+import { getUserFromRequest, requireAuth, canAccessPlayerResource } from "../../../../lib/auth";
 
 initializeDb();
 
@@ -13,6 +13,8 @@ export async function GET(request, context) {
         .filter(Boolean)
         .pop();
     const id = idFromParams ?? idFromPath;
+
+    const user = getUserFromRequest(request);
 
     if (!id) {
         return NextResponse.json(
@@ -53,6 +55,9 @@ export async function GET(request, context) {
                     return;
                 }
 
+                const protectedEmail = canAccessPlayerResource(user,parseInt(id)) ? row.email : null;
+                
+
                 db.get(
                     `SELECT COUNT(*) as goals FROM goals WHERE player_id = ?`,
                     [id],
@@ -76,14 +81,8 @@ export async function GET(request, context) {
                                     player: {
                                         id: row.id,
                                         name: row.name,
-                                        email: row.email,
-                                        team: row.teamId
-                                            ? {
-                                                  id: row.teamId,
-                                                  name: row.teamName,
-                                                  leagueName: row.leagueName,
-                                              }
-                                            : null,
+                                        email: protectedEmail,
+                                        team: row.teamId ? { id: row.teamId, name: row.teamName, leagueName: row.leagueName} : null,
                                         goals: goalRow?.goals ?? 0,
                                     },
                                 },

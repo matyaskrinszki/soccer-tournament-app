@@ -85,21 +85,6 @@ export default function PlayersBrowsePage() {
                 }
             }
 
-            if (!playerId && userEmail) {
-                try {
-                    const res = await fetch(`/api/players?email=${encodeURIComponent(userEmail)}`);
-                    const data = await res.json();
-                    if (res.ok && data?.player?.id) {
-                        playerId = data.player.id;
-                        if (typeof window !== 'undefined') {
-                            localStorage.setItem('playerId', String(playerId));
-                        }
-                    }
-                } catch (err) {
-                    playerId = null;
-                }
-            }
-
             if (!playerId) {
                 setCurrentPlayerId(null);
                 setIsCaptain(false);
@@ -256,7 +241,7 @@ export default function PlayersBrowsePage() {
                             <div key={player.id} className="player-row">
                                 <Link href={`/players/${player.id}`} className="player-link">
                                     <div>
-                                        <h3>{player.name || player.email}</h3>
+                                        <h3>{player.name || "Nincs név"}</h3>
                                         {player.team ? (
                                             <p className="player-meta">Csapat: {player.team.name}</p>
                                         ) : (

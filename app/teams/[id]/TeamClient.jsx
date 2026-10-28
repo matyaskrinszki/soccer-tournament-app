@@ -102,18 +102,8 @@ export default function TeamClient({ id }) {
             if (storedId) {
                 if (!cancelled) setCurrentPlayerId(Number(storedId));
                 return;
-            }
-
-            try {
-                const res = await fetch(`/api/players?email=${encodeURIComponent(userEmail)}`);
-                if (!res.ok) return;
-                const data = await res.json();
-                if (data?.player?.id && !cancelled) {
-                    localStorage.setItem('playerId', String(data.player.id));
-                    setCurrentPlayerId(data.player.id);
-                }
-            } catch (err) {
-                // ignore
+            } else {
+                setCurrentPlayerId(null);
             }
         };
 
@@ -390,7 +380,7 @@ export default function TeamClient({ id }) {
                                             <div key={player.id} className="player-mini-card-wrapper">
                                                 <Link href={`/players/${player.id}`} className="player-card-link">
                                                     <div className="player-mini-card">
-                                                        <h3>{player.name || player.email}</h3>
+                                                        <h3>{player.name || "Nincs név"}</h3>
                                                     </div>
                                                 </Link>
                                                 {isTeamCaptain && Number(player.id) !== Number(team.captainPlayerId) && (

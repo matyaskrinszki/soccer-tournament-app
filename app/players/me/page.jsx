@@ -73,26 +73,6 @@ export default function PlayerMePage() {
             setPlayerId(Number(storedId));
             return;
         }
-
-        let cancelled = false;
-        const resolvePlayer = async () => {
-            try {
-                const res = await fetch(`/api/players?email=${encodeURIComponent(userEmail)}`);
-                if (!res.ok) return;
-                const data = await res.json();
-                if (data?.player?.id && !cancelled) {
-                    localStorage.setItem('playerId', String(data.player.id));
-                    setPlayerId(data.player.id);
-                }
-            } catch (err) {
-                // ignore
-            }
-        };
-        resolvePlayer();
-
-        return () => {
-            cancelled = true;
-        };
     }, [isLoggedIn, userEmail]);
 
     useEffect(() => {
@@ -102,7 +82,7 @@ export default function PlayerMePage() {
             try {
                 setLoading(true);
                 setError('');
-                const res = await fetch(`/api/players/${playerId}`);
+                const res = await fetch(`/api/players/${playerId}`, { headers: getAuthHeaders() });
                 const data = await res.json();
                 if (!res.ok) {
                     throw new Error(data.error || 'Hiba történt a játékos betöltésekor');

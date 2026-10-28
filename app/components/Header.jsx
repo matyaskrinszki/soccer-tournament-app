@@ -13,7 +13,6 @@ export default function Header({ isLoggedIn, userEmail, setIsLoggedIn, onOpenAut
         const storedId = localStorage.getItem('playerId');
         return storedId ? Number(storedId) : null;
     });
-    const [isResolvingPlayer, setIsResolvingPlayer] = useState(false);
     const [captainTeamId, setCaptainTeamId] = useState(null);
     const [userRole, setUserRole] = useState(() => {
         if (typeof window === 'undefined') return null;
@@ -41,32 +40,9 @@ export default function Header({ isLoggedIn, userEmail, setIsLoggedIn, onOpenAut
         if (storedId) {
             setPlayerId(Number(storedId));
             return;
+        } else {
+            setPlayerId(null);
         }
-
-        let cancelled = false;
-        const fetchPlayerId = async () => {
-            setIsResolvingPlayer(true);
-            try {
-                const res = await fetch(`/api/players?email=${encodeURIComponent(userEmail)}`);
-                if (!res.ok) return;
-                const data = await res.json();
-                if (data?.player?.id) {
-                    localStorage.setItem('playerId', String(data.player.id));
-                    if (!cancelled) {
-                        setPlayerId(data.player.id);
-                    }
-                }
-            } catch (err) {
-                // ignore
-            } finally {
-                if (!cancelled) setIsResolvingPlayer(false);
-            }
-        };
-
-        fetchPlayerId();
-        return () => {
-            cancelled = true;
-        };
     }, [isLoggedIn, userEmail]);
 
     useEffect(() => {
@@ -130,9 +106,9 @@ export default function Header({ isLoggedIn, userEmail, setIsLoggedIn, onOpenAut
                                 <span
                                     className="auth-link user-email-link"
                                     onClick={handleUserEmailClick}
-                                    style={{ cursor: isResolvingPlayer ? 'default' : 'pointer', opacity: isResolvingPlayer ? 0.6 : 1 }}
+                                    style={{ cursor: 'pointer', opacity: 1 }}
                                 >
-                                    {isResolvingPlayer ? 'Betöltés...' : userEmail}
+                                    {userEmail}
                                 </span>
                                 <span className="auth-link" onClick={handleLogout}>Kijelentkezés</span>
                             </>
