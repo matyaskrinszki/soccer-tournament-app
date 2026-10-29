@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getDb, initializeDb } from "../../../../lib/db";
 import { validateAuth } from "../../../../lib/validation";
-import { getUserFromRequest, requireAuth, canAccessPlayerResource } from "../../../../lib/auth";
+import { getUserFromRequest, getPlayerById, requireAuth, canAccessPlayerResource } from "../../../../lib/auth";
 
 initializeDb();
 
@@ -15,6 +15,9 @@ export async function GET(request, context) {
     const id = idFromParams ?? idFromPath;
 
     const user = getUserFromRequest(request);
+    if(user) {
+        user.role = (await getPlayerById(user.playerId))?.role ?? null;
+    }
 
     if (!id) {
         return NextResponse.json(
