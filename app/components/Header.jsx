@@ -25,6 +25,7 @@ export default function Header({ isLoggedIn, userEmail, setIsLoggedIn, onOpenAut
         localStorage.removeItem('email');
         localStorage.removeItem('playerId');
         localStorage.removeItem('role');
+        setPlayerId(null);
         setUserRole(null);
         setCaptainTeamId(null);
         setIsLoggedIn(false);

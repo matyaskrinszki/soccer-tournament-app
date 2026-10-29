@@ -7,12 +7,7 @@ import { getUserFromRequest, getPlayerById, requireAuth, canAccessPlayerResource
 initializeDb();
 
 export async function GET(request, context) {
-    const idFromParams = context?.params?.id;
-    const idFromPath = new URL(request.url).pathname
-        .split("/")
-        .filter(Boolean)
-        .pop();
-    const id = idFromParams ?? idFromPath;
+    const { id } = await context.params;
 
     const user = getUserFromRequest(request);
     if(user) {
@@ -105,12 +100,7 @@ export async function PUT(request, context) {
         return user;
     }
 
-    const idFromParams = context?.params?.id;
-    const idFromPath = new URL(request.url).pathname
-        .split("/")
-        .filter(Boolean)
-        .pop();
-    const id = idFromParams ?? idFromPath;
+    const { id } = await context.params;
 
     if (!id) {
         return NextResponse.json(

@@ -11,20 +11,7 @@ export async function POST(request, context) {
         return user;
     }
 
-    let requestId = context?.params?.id;
-
-    if (!requestId) {
-        const pathParts = new URL(request.url).pathname
-            .split("/")
-            .filter(Boolean);
-        const joinRequestsIndex = pathParts.indexOf("join-requests");
-        if (
-            joinRequestsIndex !== -1 &&
-            joinRequestsIndex + 1 < pathParts.length
-        ) {
-            requestId = pathParts[joinRequestsIndex + 1];
-        }
-    }
+    const { id: requestId } = await context.params;
 
     if (!requestId) {
         return NextResponse.json(

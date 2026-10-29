@@ -11,20 +11,7 @@ export async function POST(request, context) {
         return user;
     }
 
-    let invitationId = context?.params?.id;
-
-    if (!invitationId) {
-        const pathParts = new URL(request.url).pathname
-            .split("/")
-            .filter(Boolean);
-        const invitationsIndex = pathParts.indexOf("recruitment-invitations");
-        if (
-            invitationsIndex !== -1 &&
-            invitationsIndex + 1 < pathParts.length
-        ) {
-            invitationId = pathParts[invitationsIndex + 1];
-        }
-    }
+    const { id: invitationId } = await context.params;
 
     if (!invitationId) {
         return NextResponse.json(

@@ -13,11 +13,8 @@ export async function POST(request, context) {
         return user;
     }
 
-    const idFromParams = context?.params?.id;
-    const idFromPath = new URL(request.url).pathname
-        .split("/")
-        .filter(Boolean)[2];
-    const teamId = Number(idFromParams ?? idFromPath);
+    const { id } = await context.params;
+    const teamId = Number(id);
 
     if (!teamId) {
         return NextResponse.json(
