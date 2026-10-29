@@ -1,26 +1,14 @@
 import { NextResponse } from "next/server";
 import { getDb, initializeDb } from "../../../../../lib/db";
-import { verifyToken } from "../../../../lib/auth";
+import { requireAuth } from "../../../../../lib/auth";
 
 initializeDb();
 
 export async function GET(request) {
     try {
-        // Get token from Authorization header
-        const authHeader = request.headers.get("Authorization");
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            return NextResponse.json(
-                { error: "Hiányzik az autentikációs token" },
-                { status: 401 },
-            );
-        }
-
-        const token = authHeader.substring(7);
-        const decoded = verifyToken(
-            token
-        );
-        const playerId = decoded.playerId;
-        console.log(`[teams] Decoded playerId: ${playerId}`);
+        const user = await requireAuth(request);
+        if (user instanceof NextResponse) return user;
+        const playerId = user.playerId;
 
         return new Promise((resolve) => {
             const db = getDb();
@@ -34,9 +22,6 @@ export async function GET(request) {
                 ORDER BY t.name`,
                 [playerId],
                 (err, rows) => {
-                    console.log(
-                        `[teams] Found ${rows?.length || 0} teams for playerId ${playerId}`,
-                    );
                     db.close();
                     if (err) {
                         console.error("Database error:", err);
@@ -57,8 +42,8 @@ export async function GET(request) {
     } catch (err) {
         console.error("Error:", err);
         return NextResponse.json(
-            { error: "Autentikációs hiba" },
-            { status: 401 },
+            { error: "Szerverhiba történt" },
+            { status: 500 },
         );
     }
 }
