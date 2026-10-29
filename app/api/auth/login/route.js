@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import { getDb, initializeDb } from "../../../../lib/db";
 import { validateAuth } from "../../../../lib/validation";
+import { signToken } from "../../../../lib/auth";
 
 initializeDb();
-
-const JWT_SECRET = process.env.JWT_SECRET || "mysupersecretkey";
 
 export async function POST(request) {
     try {
@@ -68,15 +66,13 @@ export async function POST(request) {
                         return;
                     }
 
-                    const token = jwt.sign(
+                    const token = signToken(
                         {
                             playerId: row.id,
                             userId: row.id,
                             email,
                             role: row.role,
-                        },
-                        JWT_SECRET,
-                        { expiresIn: "7d" },
+                        }
                     );
 
                     db.close();

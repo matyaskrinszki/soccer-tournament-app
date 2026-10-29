@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import jwt from "jsonwebtoken";
 import { getDb, initializeDb } from "../../../../../lib/db";
+import { verifyToken } from "../../../../lib/auth";
 
 initializeDb();
 
@@ -16,9 +16,8 @@ export async function GET(request) {
         }
 
         const token = authHeader.substring(7);
-        const decoded = jwt.verify(
-            token,
-            process.env.JWT_SECRET || "mysupersecretkey",
+        const decoded = verifyToken(
+            token
         );
         const playerId = decoded.playerId;
         console.log(`[teams] Decoded playerId: ${playerId}`);

@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import { getDb, initializeDb } from "../../../../lib/db";
 import { validateAuth } from "../../../../lib/validation";
+import { signToken } from "../../../../lib/auth";
 
 initializeDb();
-
-const JWT_SECRET = process.env.JWT_SECRET || "mysupersecretkey";
 
 export async function POST(request) {
     try {
@@ -78,15 +76,13 @@ export async function POST(request) {
                             }
 
                             // Create JWT token with playerId and role (new users are 'Player' by default)
-                            const token = jwt.sign(
+                            const token = signToken(
                                 {
                                     playerId: this.lastID,
                                     userId: this.lastID,
                                     email,
                                     role: "Player",
-                                },
-                                JWT_SECRET,
-                                { expiresIn: "7d" },
+                                }
                             );
 
                             db.close();
