@@ -1,0 +1,183 @@
+.schedule-page {
+  min-height: 100vh;
+  background: #F5EFE7;
+}
+
+.schedule-app {
+  padding: 2.5rem 1.25rem 3rem;
+  max-width: 1000px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.schedule-header h1 {
+  margin: 0 0 0.35rem 0;
+}
+
+.schedule-header .eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  font-size: 0.8rem;
+  margin: 0 0 0.35rem 0;
+}
+
+.schedule-header .subhead {
+  margin: 0;
+  color: #3E5879;
+}
+
+.schedule-message {
+  padding: 1rem 1.25rem;
+  background: #ffffff;
+  border: 1px solid #D8C4B6;
+  border-radius: 8px;
+}
+
+.schedule-error {
+  border-color: #c0392b;
+  color: #c0392b;
+}
+
+.schedule-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.schedule-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.schedule-controls select {
+  min-width: 220px;
+  padding: 0.6rem 0.8rem;
+  background: #ffffff;
+  border: 2px solid #D8C4B6;
+  border-radius: 8px;
+  color: #213555;
+  font-size: 1rem;
+}
+
+.schedule-controls select:focus {
+  outline: none;
+  border-color: #3E5879;
+}
+
+.schedule-note {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  background: #fff8e6;
+  border-left: 4px solid #e0a800;
+  border-radius: 4px;
+}
+
+.league-scores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.league-score {
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem 1rem;
+  background: #ffffff;
+  border: 1px solid #D8C4B6;
+  border-radius: 8px;
+}
+
+.league-score-name {
+  font-weight: 700;
+}
+
+.league-score-value {
+  font-size: 0.85rem;
+  color: #3E5879;
+}
+
+.schedule-day h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.05rem;
+  text-transform: capitalize;
+}
+
+.match-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: #ffffff;
+  border: 1px solid #D8C4B6;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.match-row {
+  display: grid;
+  grid-template-columns: 7.5rem 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #F5EFE7;
+}
+
+.match-row:last-child {
+  border-bottom: none;
+}
+
+.match-time {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.match-teams {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.match-teams a {
+  color: #213555;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.match-teams a:hover {
+  text-decoration: underline;
+}
+
+.match-vs {
+  color: #3E5879;
+}
+
+.match-meta {
+  font-size: 0.85rem;
+  color: #3E5879;
+  text-align: right;
+}
+
+@media (max-width: 640px) {
+  .match-row {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+
+  .match-meta {
+    text-align: left;
+  }
+
+  .schedule-controls select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .schedule-controls label {
+    flex: 1 1 100%;
+  }
+}

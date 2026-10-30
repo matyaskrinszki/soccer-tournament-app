@@ -751,7 +751,7 @@ export default function AdminPage() {
                                 <h3>Pályák és időpontok kezelése</h3>
                                 
                                 {!selectedSeason ? (
-                                    <p>Válassz ki egy szezonüt az előbb, majd térj vissza.</p>
+                                    <p>Válassz ki egy szezont az előbb, majd térj vissza.</p>
                                 ) : (
                                     <>
                                         <div className="form-section">
@@ -838,7 +838,7 @@ export default function AdminPage() {
                                 <h3>Ütemezés generálása</h3>
                                 
                                 {!selectedSeason ? (
-                                    <p>Válassz ki egy szezonüt az előbb, majd térj vissza.</p>
+                                    <p>Válassz ki egy szezont az előbb, majd térj vissza.</p>
                                 ) : (
                                     <>
                                         <div className="schedule-info">
@@ -854,6 +854,21 @@ export default function AdminPage() {
                                             </button>
                                         </div>
 
+                                        {schedules.some((schedule) => schedule.status === 'current') && (
+                                            <div className="schedule-info">
+                                                {['generated', 'active', 'completed'].includes(selectedSeasonDetails?.status) ? (
+                                                    <Link href={`/schedule?seasonId=${selectedSeason}`} className="btn-primary">
+                                                        Menetrend megtekintése
+                                                    </Link>
+                                                ) : (
+                                                    <p>
+                                                        A menetrend akkor lesz nyilvános, ha a szezon állapota
+                                                        &quot;generated&quot;, &quot;active&quot; vagy &quot;completed&quot;.
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
+
                                         {schedules.length > 0 && (
                                             <div className="schedules-history">
                                                 <h4>Generálási előzmények</h4>
@@ -862,7 +877,7 @@ export default function AdminPage() {
                                                         <tr>
                                                             <th>Generálva</th>
                                                             <th>Liga</th>
-                                                            <th>Melégedettség %</th>
+                                                            <th>Elégedettség %</th>
                                                             <th>Állapot</th>
                                                         </tr>
                                                     </thead>

@@ -6,7 +6,7 @@ initializeDb();
 
 export async function POST(request, context) {
     // Require captain or admin role
-    const user = await requireCaptainOrAdmin(request);
+    const user = requireCaptainOrAdmin(request);
     if (user instanceof NextResponse) {
         return user;
     }

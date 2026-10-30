@@ -267,3 +267,9 @@
     color: #1a1a1a;
     font-weight: 500;
 }
+
+/* Link styled as a button (e.g. "Menetrend megtekintése") */
+a.btn-primary {
+    display: inline-block;
+    text-decoration: none;
+}

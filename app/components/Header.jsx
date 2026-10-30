@@ -129,6 +129,7 @@ export default function Header({ isLoggedIn, userEmail, setIsLoggedIn, onOpenAut
                     </Link>
                     <nav className="nav">
                         <a href="/tabella">Tabella</a>
+                        <Link href="/schedule">Menetrend</Link>
                         <Link href="/players">Játékosok</Link>
                         <Link href="/teams">Csapatok</Link>
                         <Link href="/statistics">Statisztikák</Link>
