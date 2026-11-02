@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getDb } from "../../../../lib/db";
+import { getDatabase } from "../../../../lib/database";
+import { jsonError, serverError } from "../../../../lib/api";
 import { requireAdmin } from "../../../../lib/auth";
 
 export async function GET(request) {
@@ -12,38 +13,24 @@ export async function GET(request) {
     const seasonId = url.searchParams.get("seasonId");
 
     if (!seasonId) {
-        return NextResponse.json(
-            { error: "Szezon ID szükséges" },
-            { status: 400 },
-        );
+        return jsonError(400, "Szezon ID szükséges");
     }
 
-    return new Promise((resolve) => {
-        const db = getDb();
+    try {
+        const pitches = getDatabase()
+            .prepare(
+                `SELECT id, season_id as seasonId, name, location
+                 FROM pitches
+                 WHERE season_id = ?
+                 ORDER BY name`,
+            )
+            .all(seasonId);
 
-        db.all(
-            `SELECT id, season_id as seasonId, name, location 
-             FROM pitches 
-             WHERE season_id = ?
-             ORDER BY name`,
-            [seasonId],
-            (err, rows) => {
-                if (err) {
-                    db.close();
-                    resolve(
-                        NextResponse.json(
-                            { error: "Hiba a pályák lekérdezésekor" },
-                            { status: 500 },
-                        ),
-                    );
-                    return;
-                }
-
-                db.close();
-                resolve(NextResponse.json({ pitches: rows || [] }));
-            },
-        );
-    });
+        return NextResponse.json({ pitches });
+    } catch (err) {
+        console.error(err);
+        return jsonError(500, "Hiba a pályák lekérdezésekor");
+    }
 }
 
 export async function POST(request) {
@@ -52,45 +39,34 @@ export async function POST(request) {
         return user;
     }
 
-    const body = await request.json();
-    const { seasonId, name, location } = body;
+    try {
+        const body = await request.json();
+        const { seasonId, name, location } = body;
 
-    if (!seasonId || !name) {
+        if (!seasonId || !name) {
+            return jsonError(400, "Szezon ID és pálya név szükséges");
+        }
+
+        let result;
+        try {
+            result = getDatabase()
+                .prepare(
+                    `INSERT INTO pitches (season_id, name, location, created_by_admin)
+                     VALUES (?, ?, ?, ?)`,
+                )
+                .run(seasonId, name, location || null, user.id);
+        } catch (err) {
+            console.error(err);
+            return jsonError(500, "Hiba a pálya létrehozásakor");
+        }
+
         return NextResponse.json(
-            { error: "Szezon ID és pálya név szükséges" },
-            { status: 400 },
+            { pitchId: Number(result.lastInsertRowid) },
+            { status: 201 },
         );
+    } catch (err) {
+        return serverError(err);
     }
-
-    return new Promise((resolve) => {
-        const db = getDb();
-
-        db.run(
-            `INSERT INTO pitches (season_id, name, location, created_by_admin)
-             VALUES (?, ?, ?, ?)`,
-            [seasonId, name, location || null, user.id],
-            function (err) {
-                if (err) {
-                    db.close();
-                    resolve(
-                        NextResponse.json(
-                            { error: "Hiba a pálya létrehozásakor" },
-                            { status: 500 },
-                        ),
-                    );
-                    return;
-                }
-
-                db.close();
-                resolve(
-                    NextResponse.json(
-                        { pitchId: this.lastID },
-                        { status: 201 },
-                    ),
-                );
-            },
-        );
-    });
 }
 
 export async function DELETE(request) {
@@ -99,44 +75,30 @@ export async function DELETE(request) {
         return user;
     }
 
-    const body = await request.json();
-    const { pitchId } = body;
+    try {
+        const body = await request.json();
+        const { pitchId } = body;
 
-    if (!pitchId) {
-        return NextResponse.json(
-            { error: "Pálya ID szükséges" },
-            { status: 400 },
-        );
+        if (!pitchId) {
+            return jsonError(400, "Pálya ID szükséges");
+        }
+
+        let result;
+        try {
+            result = getDatabase()
+                .prepare("DELETE FROM pitches WHERE id = ?")
+                .run(pitchId);
+        } catch (err) {
+            console.error(err);
+            return jsonError(500, "Hiba a pálya törlésekor");
+        }
+
+        if (result.changes === 0) {
+            return jsonError(404, "Pálya nem található");
+        }
+
+        return NextResponse.json({ success: true }, { status: 200 });
+    } catch (err) {
+        return serverError(err);
     }
-
-    return new Promise((resolve) => {
-        const db = getDb();
-
-        db.run(`DELETE FROM pitches WHERE id = ?`, [pitchId], function (err) {
-            if (err) {
-                db.close();
-                resolve(
-                    NextResponse.json(
-                        { error: "Hiba a pálya törlésekor" },
-                        { status: 500 },
-                    ),
-                );
-                return;
-            }
-
-            if (this.changes === 0) {
-                db.close();
-                resolve(
-                    NextResponse.json(
-                        { error: "Pálya nem található" },
-                        { status: 404 },
-                    ),
-                );
-                return;
-            }
-
-            db.close();
-            resolve(NextResponse.json({ success: true }, { status: 200 }));
-        });
-    });
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getDb } from "../../../../../lib/db";
+import { getDatabase } from "../../../../../lib/database";
+import { jsonError, serverError } from "../../../../../lib/api";
 import { requireAdmin } from "../../../../../lib/auth";
 
 const HOURLY_WINDOWS = [
@@ -51,229 +52,149 @@ export async function POST(request) {
         return user;
     }
 
-    const body = await request.json();
-    const { seasonId } = body;
+    try {
+        const body = await request.json();
+        const { seasonId } = body;
 
-    if (!seasonId) {
-        return NextResponse.json(
-            { error: "Szezon ID szükséges" },
-            { status: 400 },
+        if (!seasonId) {
+            return jsonError(400, "Szezon ID szükséges");
+        }
+
+        const db = getDatabase();
+
+        let season;
+        try {
+            season = db
+                .prepare(
+                    `SELECT id, start_date as startDate, end_date as endDate FROM seasons WHERE id = ?`,
+                )
+                .get(seasonId);
+        } catch (err) {
+            console.error(err);
+            return jsonError(500, "Hiba a szezon lekérdezésekor");
+        }
+
+        if (!season) {
+            return jsonError(404, "Szezon nem található");
+        }
+
+        const startDate = season.startDate;
+        const endDate = season.endDate;
+
+        if (!startDate || !endDate) {
+            return jsonError(
+                400,
+                "A kiválasztott szezonhoz kezdő és záró dátum szükséges",
+            );
+        }
+
+        if (startDate > endDate) {
+            return jsonError(
+                400,
+                "A szezon kezdő dátuma nem lehet később, mint a záró dátum",
+            );
+        }
+
+        const weekdayDates = buildWeekdayDates(startDate, endDate);
+        if (weekdayDates.length === 0) {
+            return jsonError(
+                400,
+                "A szezon dátumtartományában nincs hétköznap (hétfő-péntek)",
+            );
+        }
+
+        let pitchRows;
+        try {
+            pitchRows = db
+                .prepare(`SELECT id FROM pitches WHERE season_id = ? ORDER BY id`)
+                .all(seasonId);
+        } catch (err) {
+            console.error(err);
+            return jsonError(500, "Hiba a pályák lekérdezésekor");
+        }
+
+        if (pitchRows.length === 0) {
+            return jsonError(
+                400,
+                "Előbb legalább egy pályát adj hozzá a szezonhoz",
+            );
+        }
+
+        const pitchIds = pitchRows.map((row) => row.id);
+
+        let existingRows;
+        try {
+            existingRows = db
+                .prepare(
+                    `SELECT pitch_id as pitchId, slot_date as slotDate, start_time as startTime, end_time as endTime
+                     FROM time_slots
+                     WHERE season_id = ? AND slot_date >= ? AND slot_date <= ?`,
+                )
+                .all(seasonId, startDate, endDate);
+        } catch (err) {
+            console.error(err);
+            return jsonError(500, "Hiba a meglévő időpontok lekérdezésekor");
+        }
+
+        const existingSet = new Set(
+            existingRows.map(
+                (row) =>
+                    `${row.pitchId}|${row.slotDate}|${row.startTime}|${row.endTime}`,
+            ),
         );
+
+        const toInsert = [];
+        for (const pitchId of pitchIds) {
+            for (const slotDate of weekdayDates) {
+                const dayOfWeek = getMondayBasedDayOfWeek(slotDate);
+                for (const [startTime, endTime] of HOURLY_WINDOWS) {
+                    const key = `${pitchId}|${slotDate}|${startTime}|${endTime}`;
+                    if (!existingSet.has(key)) {
+                        toInsert.push({
+                            pitchId,
+                            slotDate,
+                            dayOfWeek,
+                            startTime,
+                            endTime,
+                        });
+                    }
+                }
+            }
+        }
+
+        const totalRequested =
+            pitchIds.length * weekdayDates.length * HOURLY_WINDOWS.length;
+
+        // All-or-nothing: either every missing slot is saved or none are
+        try {
+            const insertSlot = db.prepare(
+                `INSERT INTO time_slots (season_id, pitch_id, slot_date, day_of_week, start_time, end_time)
+                 VALUES (?, ?, ?, ?, ?, ?)`,
+            );
+            db.transaction(() => {
+                for (const slot of toInsert) {
+                    insertSlot.run(
+                        seasonId,
+                        slot.pitchId,
+                        slot.slotDate,
+                        slot.dayOfWeek,
+                        slot.startTime,
+                        slot.endTime,
+                    );
+                }
+            })();
+        } catch (err) {
+            console.error(err);
+            return jsonError(500, "Hiba az automatikus időpontok mentésekor");
+        }
+
+        return NextResponse.json({
+            success: true,
+            createdCount: toInsert.length,
+            skippedCount: totalRequested - toInsert.length,
+            totalRequested,
+        });
+    } catch (err) {
+        return serverError(err);
     }
-
-    return new Promise((resolve) => {
-        const db = getDb();
-
-        db.get(
-            `SELECT id, start_date as startDate, end_date as endDate FROM seasons WHERE id = ?`,
-            [seasonId],
-            (seasonErr, season) => {
-                if (seasonErr) {
-                    db.close();
-                    return resolve(
-                        NextResponse.json(
-                            { error: "Hiba a szezon lekérdezésekor" },
-                            { status: 500 },
-                        ),
-                    );
-                }
-
-                if (!season) {
-                    db.close();
-                    return resolve(
-                        NextResponse.json(
-                            { error: "Szezon nem található" },
-                            { status: 404 },
-                        ),
-                    );
-                }
-
-                const startDate = season.startDate;
-                const endDate = season.endDate;
-
-                if (!startDate || !endDate) {
-                    db.close();
-                    return resolve(
-                        NextResponse.json(
-                            {
-                                error: "A kiválasztott szezonhoz kezdő és záró dátum szükséges",
-                            },
-                            { status: 400 },
-                        ),
-                    );
-                }
-
-                if (startDate > endDate) {
-                    db.close();
-                    return resolve(
-                        NextResponse.json(
-                            {
-                                error: "A szezon kezdő dátuma nem lehet később, mint a záró dátum",
-                            },
-                            { status: 400 },
-                        ),
-                    );
-                }
-
-                const weekdayDates = buildWeekdayDates(startDate, endDate);
-                if (weekdayDates.length === 0) {
-                    db.close();
-                    return resolve(
-                        NextResponse.json(
-                            {
-                                error: "A szezon dátumtartományában nincs hétköznap (hétfő-péntek)",
-                            },
-                            { status: 400 },
-                        ),
-                    );
-                }
-
-                db.all(
-                    `SELECT id FROM pitches WHERE season_id = ? ORDER BY id`,
-                    [seasonId],
-                    (pitchErr, pitchRows) => {
-                        if (pitchErr) {
-                            db.close();
-                            return resolve(
-                                NextResponse.json(
-                                    { error: "Hiba a pályák lekérdezésekor" },
-                                    { status: 500 },
-                                ),
-                            );
-                        }
-
-                        if (!pitchRows || pitchRows.length === 0) {
-                            db.close();
-                            return resolve(
-                                NextResponse.json(
-                                    {
-                                        error: "Előbb legalább egy pályát adj hozzá a szezonhoz",
-                                    },
-                                    { status: 400 },
-                                ),
-                            );
-                        }
-
-                        const pitchIds = pitchRows.map((row) => row.id);
-
-                        db.all(
-                            `SELECT pitch_id as pitchId, slot_date as slotDate, start_time as startTime, end_time as endTime
-                             FROM time_slots
-                             WHERE season_id = ? AND slot_date >= ? AND slot_date <= ?`,
-                            [seasonId, startDate, endDate],
-                            (existingErr, existingRows) => {
-                                if (existingErr) {
-                                    db.close();
-                                    return resolve(
-                                        NextResponse.json(
-                                            {
-                                                error: "Hiba a meglévő időpontok lekérdezésekor",
-                                            },
-                                            { status: 500 },
-                                        ),
-                                    );
-                                }
-
-                                const existingSet = new Set(
-                                    (existingRows || []).map(
-                                        (row) =>
-                                            `${row.pitchId}|${row.slotDate}|${row.startTime}|${row.endTime}`,
-                                    ),
-                                );
-
-                                const toInsert = [];
-                                for (const pitchId of pitchIds) {
-                                    for (const slotDate of weekdayDates) {
-                                        const dayOfWeek =
-                                            getMondayBasedDayOfWeek(slotDate);
-                                        for (const [
-                                            startTime,
-                                            endTime,
-                                        ] of HOURLY_WINDOWS) {
-                                            const key = `${pitchId}|${slotDate}|${startTime}|${endTime}`;
-                                            if (!existingSet.has(key)) {
-                                                toInsert.push({
-                                                    pitchId,
-                                                    slotDate,
-                                                    dayOfWeek,
-                                                    startTime,
-                                                    endTime,
-                                                });
-                                            }
-                                        }
-                                    }
-                                }
-
-                                if (toInsert.length === 0) {
-                                    db.close();
-                                    return resolve(
-                                        NextResponse.json({
-                                            success: true,
-                                            createdCount: 0,
-                                            skippedCount:
-                                                pitchIds.length *
-                                                weekdayDates.length *
-                                                HOURLY_WINDOWS.length,
-                                            totalRequested:
-                                                pitchIds.length *
-                                                weekdayDates.length *
-                                                HOURLY_WINDOWS.length,
-                                        }),
-                                    );
-                                }
-
-                                let inserted = 0;
-                                for (const slot of toInsert) {
-                                    db.run(
-                                        `INSERT INTO time_slots (season_id, pitch_id, slot_date, day_of_week, start_time, end_time)
-                                         VALUES (?, ?, ?, ?, ?, ?)`,
-                                        [
-                                            seasonId,
-                                            slot.pitchId,
-                                            slot.slotDate,
-                                            slot.dayOfWeek,
-                                            slot.startTime,
-                                            slot.endTime,
-                                        ],
-                                        (insertErr) => {
-                                            if (insertErr) {
-                                                db.close();
-                                                return resolve(
-                                                    NextResponse.json(
-                                                        {
-                                                            error: "Hiba az automatikus időpontok mentésekor",
-                                                        },
-                                                        { status: 500 },
-                                                    ),
-                                                );
-                                            }
-
-                                            inserted += 1;
-                                            if (inserted === toInsert.length) {
-                                                db.close();
-                                                const totalRequested =
-                                                    pitchIds.length *
-                                                    weekdayDates.length *
-                                                    HOURLY_WINDOWS.length;
-                                                return resolve(
-                                                    NextResponse.json({
-                                                        success: true,
-                                                        createdCount: inserted,
-                                                        skippedCount:
-                                                            totalRequested -
-                                                            inserted,
-                                                        totalRequested,
-                                                    }),
-                                                );
-                                            }
-                                        },
-                                    );
-                                }
-                            },
-                        );
-                    },
-                );
-            },
-        );
-    });
 }

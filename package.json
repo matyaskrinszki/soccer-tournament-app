@@ -11,12 +11,12 @@
   "dependencies": {
     "@faker-js/faker": "^10.2.0",
     "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^13.0.3",
     "jsonwebtoken": "^9.0.2",
     "next": "16.0.7",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "react-icons": "^5.5.0",
-    "sqlite3": "^5.1.7"
+    "react-icons": "^5.5.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -25,7 +25,7 @@
     "tailwindcss": "^4"
   },
   "allowScripts": {
-    "sqlite3@5.1.7": true,
+    "better-sqlite3": true,
     "sharp": false,
     "unrs-resolver": false
   }

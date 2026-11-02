@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getDb } from "../../../../../lib/db";
+import { getDatabase } from "../../../../../lib/database";
+import { jsonError, serverError } from "../../../../../lib/api";
 import {
     requireCaptainOrAdmin,
     isCaptainOfTeam,
@@ -15,18 +16,15 @@ export async function POST(request, context) {
     const teamId = Number(id);
 
     if (!teamId) {
-        return NextResponse.json(
-            { error: "A csapat azonosító hiányzik" },
-            { status: 400 },
-        );
+        return jsonError(400, "A csapat azonosító hiányzik");
     }
 
     if (user.role !== "Admin") {
         const captainCheck = await isCaptainOfTeam(user, teamId);
         if (!captainCheck) {
-            return NextResponse.json(
-                { error: "Csak a csapatkapitány távolíthat el játékost" },
-                { status: 403 },
+            return jsonError(
+                403,
+                "Csak a csapatkapitány távolíthat el játékost",
             );
         }
     }
@@ -35,98 +33,46 @@ export async function POST(request, context) {
     try {
         payload = await request.json();
     } catch (err) {
-        return NextResponse.json(
-            { error: "Érvénytelen kérés" },
-            { status: 400 },
-        );
+        return jsonError(400, "Érvénytelen kérés");
     }
 
     const playerId = Number(payload?.playerId);
     if (!playerId) {
-        return NextResponse.json(
-            { error: "A játékos azonosító hiányzik" },
-            { status: 400 },
-        );
+        return jsonError(400, "A játékos azonosító hiányzik");
     }
 
-    const db = getDb();
+    try {
+        const db = getDatabase();
 
-    return new Promise((resolve) => {
-        db.get(
-            "SELECT captain_player_id FROM teams WHERE id = ?",
-            [teamId],
-            (teamErr, teamRow) => {
-                if (teamErr) {
-                    db.close();
-                    resolve(
-                        NextResponse.json(
-                            { error: "Adatbázis hiba történt" },
-                            { status: 500 },
-                        ),
-                    );
-                    return;
-                }
+        const teamRow = db
+            .prepare("SELECT captain_player_id FROM teams WHERE id = ?")
+            .get(teamId);
+        if (!teamRow) {
+            return jsonError(404, "A csapat nem található");
+        }
 
-                if (!teamRow) {
-                    db.close();
-                    resolve(
-                        NextResponse.json(
-                            { error: "A csapat nem található" },
-                            { status: 404 },
-                        ),
-                    );
-                    return;
-                }
+        if (Number(teamRow.captain_player_id) === playerId) {
+            return jsonError(400, "A csapatkapitány nem távolítható el");
+        }
 
-                if (Number(teamRow.captain_player_id) === playerId) {
-                    db.close();
-                    resolve(
-                        NextResponse.json(
-                            { error: "A csapatkapitány nem távolítható el" },
-                            { status: 400 },
-                        ),
-                    );
-                    return;
-                }
-
-                db.run(
+        let result;
+        try {
+            result = db
+                .prepare(
                     "UPDATE players SET team_id = NULL, role = CASE WHEN role = 'Captain' THEN 'Player' ELSE role END WHERE id = ? AND team_id = ?",
-                    [playerId, teamId],
-                    function (updateErr) {
-                        db.close();
-                        if (updateErr) {
-                            resolve(
-                                NextResponse.json(
-                                    {
-                                        error: "Nem sikerült eltávolítani a játékost",
-                                    },
-                                    { status: 500 },
-                                ),
-                            );
-                            return;
-                        }
+                )
+                .run(playerId, teamId);
+        } catch (err) {
+            console.error(err);
+            return jsonError(500, "Nem sikerült eltávolítani a játékost");
+        }
 
-                        if (this.changes === 0) {
-                            resolve(
-                                NextResponse.json(
-                                    {
-                                        error: "A játékos nem tagja ennek a csapatnak",
-                                    },
-                                    { status: 404 },
-                                ),
-                            );
-                            return;
-                        }
+        if (result.changes === 0) {
+            return jsonError(404, "A játékos nem tagja ennek a csapatnak");
+        }
 
-                        resolve(
-                            NextResponse.json(
-                                { success: true },
-                                { status: 200 },
-                            ),
-                        );
-                    },
-                );
-            },
-        );
-    });
+        return NextResponse.json({ success: true }, { status: 200 });
+    } catch (err) {
+        return serverError(err);
+    }
 }

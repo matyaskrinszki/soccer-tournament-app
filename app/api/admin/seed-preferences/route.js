@@ -3,9 +3,9 @@
 // without logging in as each captain.
 
 import { NextResponse } from "next/server";
-import { getDb } from "../../../../lib/db";
+import { getDatabase } from "../../../../lib/database";
+import { jsonError } from "../../../../lib/api";
 import { requireAdmin } from "../../../../lib/auth";
-import { dbGet, dbAll, dbRun } from "../../../../lib/db-async";
 import {
     MIN_PREFERRED,
     MAX_UNAVAILABLE,
@@ -81,14 +81,12 @@ export async function POST(request) {
         );
     }
 
-    const db = getDb();
-
     try {
-        const season = await dbGet(
-            db,
-            `SELECT id, name, status FROM seasons WHERE id = ?`,
-            [seasonId],
-        );
+        const db = getDatabase();
+
+        const season = db
+            .prepare(`SELECT id, name, status FROM seasons WHERE id = ?`)
+            .get(seasonId);
         if (!season) {
             return NextResponse.json(
                 { error: "Szezon nem található" },
@@ -106,13 +104,13 @@ export async function POST(request) {
 
         // Map each weekly cell ("day|time") to all concrete dated slots it covers,
         // the same way the captain's preference save does.
-        const slots = await dbAll(
-            db,
-            `SELECT id, day_of_week as dayOfWeek, start_time as startTime
-             FROM time_slots
-             WHERE season_id = ? AND slot_date IS NOT NULL`,
-            [seasonId],
-        );
+        const slots = db
+            .prepare(
+                `SELECT id, day_of_week as dayOfWeek, start_time as startTime
+                 FROM time_slots
+                 WHERE season_id = ? AND slot_date IS NOT NULL`,
+            )
+            .all(seasonId);
 
         const slotIdsByWeeklyKey = new Map();
         for (const slot of slots) {
@@ -140,15 +138,16 @@ export async function POST(request) {
 
         const teams =
             leagueId === ALL_LEAGUES
-                ? await dbAll(
-                      db,
-                      `SELECT id, name, league_id as leagueId FROM teams ORDER BY league_id, name`,
-                  )
-                : await dbAll(
-                      db,
-                      `SELECT id, name, league_id as leagueId FROM teams WHERE league_id = ? ORDER BY name`,
-                      [leagueId],
-                  );
+                ? db
+                      .prepare(
+                          `SELECT id, name, league_id as leagueId FROM teams ORDER BY league_id, name`,
+                      )
+                      .all()
+                : db
+                      .prepare(
+                          `SELECT id, name, league_id as leagueId FROM teams WHERE league_id = ? ORDER BY name`,
+                      )
+                      .all(leagueId);
 
         if (teams.length === 0) {
             return NextResponse.json(
@@ -160,20 +159,24 @@ export async function POST(request) {
         const weeklyKeys = [...slotIdsByWeeklyKey.keys()];
         const summary = [];
 
+        // Replace, don't merge: same behaviour as a captain saving the grid
+        const deletePreferences = db.prepare(
+            `DELETE FROM team_availability_preferences
+             WHERE season_id = ? AND team_id = ?`,
+        );
+        const insertPreference = db.prepare(
+            `INSERT INTO team_availability_preferences
+             (season_id, team_id, time_slot_id, preference)
+             VALUES (?, ?, ?, ?)`,
+        );
+
         // All-or-nothing: either every team gets new preferences or none do
-        await dbRun(db, "BEGIN TRANSACTION");
-        try {
+        db.transaction(() => {
             for (const team of teams) {
                 const { preferred, unavailable } =
                     pickWeeklyPreferences(weeklyKeys);
 
-                // Replace, don't merge: same behaviour as a captain saving the grid
-                await dbRun(
-                    db,
-                    `DELETE FROM team_availability_preferences
-                     WHERE season_id = ? AND team_id = ?`,
-                    [seasonId, team.id],
-                );
+                deletePreferences.run(seasonId, team.id);
 
                 const entries = [
                     ...preferred.map((key) => [key, "preferred"]),
@@ -181,13 +184,7 @@ export async function POST(request) {
                 ];
                 for (const [key, preference] of entries) {
                     for (const slotId of slotIdsByWeeklyKey.get(key)) {
-                        await dbRun(
-                            db,
-                            `INSERT INTO team_availability_preferences
-                             (season_id, team_id, time_slot_id, preference)
-                             VALUES (?, ?, ?, ?)`,
-                            [seasonId, team.id, slotId, preference],
-                        );
+                        insertPreference.run(seasonId, team.id, slotId, preference);
                     }
                 }
 
@@ -199,11 +196,7 @@ export async function POST(request) {
                     unavailableCount: unavailable.length,
                 });
             }
-            await dbRun(db, "COMMIT");
-        } catch (err) {
-            await dbRun(db, "ROLLBACK").catch(() => {});
-            throw err;
-        }
+        })();
 
         return NextResponse.json(
             {
@@ -217,11 +210,6 @@ export async function POST(request) {
         );
     } catch (err) {
         console.error("Seed preferences error:", err);
-        return NextResponse.json(
-            { error: "Hiba a teszt preferenciák feltöltésekor" },
-            { status: 500 },
-        );
-    } finally {
-        db.close();
+        return jsonError(500, "Hiba a teszt preferenciák feltöltésekor");
     }
 }

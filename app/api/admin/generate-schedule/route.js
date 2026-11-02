@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getDb } from "../../../../lib/db";
+import { getDatabase } from "../../../../lib/database";
+import { jsonError } from "../../../../lib/api";
 import { requireAdmin } from "../../../../lib/auth";
 import { generateSchedule, validateSchedule } from "../../../../lib/scheduler";
 
@@ -18,42 +19,6 @@ function buildRecurringKey(dayOfWeek, startTime) {
     return `${dayOfWeek}|${startTime}`;
 }
 
-function dbGet(db, query, params = []) {
-    return new Promise((resolve, reject) => {
-        db.get(query, params, (err, row) => {
-            if (err) {
-                reject(err);
-                return;
-            }
-            resolve(row);
-        });
-    });
-}
-
-function dbAll(db, query, params = []) {
-    return new Promise((resolve, reject) => {
-        db.all(query, params, (err, rows) => {
-            if (err) {
-                reject(err);
-                return;
-            }
-            resolve(rows || []);
-        });
-    });
-}
-
-function dbRun(db, query, params = []) {
-    return new Promise((resolve, reject) => {
-        db.run(query, params, function (err) {
-            if (err) {
-                reject(err);
-                return;
-            }
-            resolve({ lastID: this.lastID, changes: this.changes });
-        });
-    });
-}
-
 export async function POST(request) {
     const user = await requireAdmin(request);
     if (user instanceof NextResponse) {
@@ -70,14 +35,12 @@ export async function POST(request) {
         );
     }
 
-    const db = getDb();
-
     try {
-        const season = await dbGet(
-            db,
-            `SELECT id, name FROM seasons WHERE id = ?`,
-            [seasonId],
-        );
+        const db = getDatabase();
+
+        const season = db
+            .prepare(`SELECT id, name FROM seasons WHERE id = ?`)
+            .get(seasonId);
 
         if (!season) {
             return NextResponse.json(
@@ -86,14 +49,14 @@ export async function POST(request) {
             );
         }
 
-        const timeSlots = await dbAll(
-            db,
-            `SELECT id, pitch_id as pitchId, slot_date as slotDate, day_of_week as dayOfWeek, start_time as startTime, end_time as endTime
-             FROM time_slots
-             WHERE season_id = ?
-             ORDER BY slot_date IS NULL, slot_date, day_of_week, start_time`,
-            [seasonId],
-        );
+        const timeSlots = db
+            .prepare(
+                `SELECT id, pitch_id as pitchId, slot_date as slotDate, day_of_week as dayOfWeek, start_time as startTime, end_time as endTime
+                 FROM time_slots
+                 WHERE season_id = ?
+                 ORDER BY slot_date IS NULL, slot_date, day_of_week, start_time`,
+            )
+            .all(seasonId);
 
         if (timeSlots.length === 0) {
             return NextResponse.json(
@@ -102,15 +65,16 @@ export async function POST(request) {
             );
         }
 
-        const leagueRows = await dbAll(
-            db,
-            `SELECT league_id as leagueId, COUNT(*) as teamCount
-             FROM teams
-             WHERE league_id IS NOT NULL
-             GROUP BY league_id
-             HAVING COUNT(*) >= 2
-             ORDER BY league_id`,
-        );
+        const leagueRows = db
+            .prepare(
+                `SELECT league_id as leagueId, COUNT(*) as teamCount
+                 FROM teams
+                 WHERE league_id IS NOT NULL
+                 GROUP BY league_id
+                 HAVING COUNT(*) >= 2
+                 ORDER BY league_id`,
+            )
+            .all();
 
         if (leagueRows.length === 0) {
             return NextResponse.json(
@@ -121,18 +85,18 @@ export async function POST(request) {
             );
         }
 
-        const allPreferences = await dbAll(
-            db,
-            `SELECT p.team_id as teamId,
-                    p.time_slot_id as timeSlotId,
-                    p.preference,
-                    ts.day_of_week as dayOfWeek,
-                    ts.start_time as startTime
-             FROM team_availability_preferences p
-             INNER JOIN time_slots ts ON ts.id = p.time_slot_id
-             WHERE p.season_id = ?`,
-            [seasonId],
-        );
+        const allPreferences = db
+            .prepare(
+                `SELECT p.team_id as teamId,
+                        p.time_slot_id as timeSlotId,
+                        p.preference,
+                        ts.day_of_week as dayOfWeek,
+                        ts.start_time as startTime
+                 FROM team_availability_preferences p
+                 INNER JOIN time_slots ts ON ts.id = p.time_slot_id
+                 WHERE p.season_id = ?`,
+            )
+            .all(seasonId);
 
         const preferencesByTeam = new Map();
         for (const preference of allPreferences) {
@@ -161,19 +125,32 @@ export async function POST(request) {
             recurringOptionKeys.size,
         );
 
-        let currentFreeSlots = timeSlots;
+        const teamsInLeague = db.prepare(
+            `SELECT id, name FROM teams WHERE league_id = ? ORDER BY id`,
+        );
+        const archiveRuns = db.prepare(
+            `UPDATE schedule_runs SET status = 'archived'
+             WHERE season_id = ? AND league_id = ?`,
+        );
+        const insertRun = db.prepare(
+            `INSERT INTO schedule_runs (season_id, league_id, algorithm_score, status)
+             VALUES (?, ?, ?, 'current')`,
+        );
+        const insertMatch = db.prepare(
+            `INSERT INTO scheduled_matches
+             (schedule_run_id, home_team_id, away_team_id, time_slot_id, pitch_id, round_number)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+        );
 
-        await dbRun(db, "BEGIN TRANSACTION");
-        try {
+        // Generates and saves every league. Runs inside one transaction: any throw
+        // (the typed failures below or a SQLite error) rolls back all leagues.
+        const generateAllLeagues = db.transaction(() => {
             const generationResults = [];
+            let currentFreeSlots = timeSlots;
 
             for (const leagueRow of leagueRows) {
                 const leagueId = leagueRow.leagueId;
-                const teams = await dbAll(
-                    db,
-                    `SELECT id, name FROM teams WHERE league_id = ? ORDER BY id`,
-                    [leagueId],
-                );
+                const teams = teamsInLeague.all(leagueId);
 
                 const teamIds = teams.map((team) => team.id);
 
@@ -248,7 +225,7 @@ export async function POST(request) {
                 const teamPreferences = new Map();
                 teamIds.forEach((id) => teamPreferences.set(id, new Map()));
 
-                (allPreferences || []).forEach((pref) => {
+                allPreferences.forEach((pref) => {
                     if (!teamPreferences.has(pref.teamId)) {
                         return;
                     }
@@ -290,37 +267,22 @@ export async function POST(request) {
                     );
                 });
 
-                await dbRun(
-                    db,
-                    `UPDATE schedule_runs SET status = 'archived'
-                     WHERE season_id = ? AND league_id = ?`,
-                    [seasonId, leagueId],
-                );
+                archiveRuns.run(seasonId, leagueId);
 
-                const scheduleRunInsert = await dbRun(
-                    db,
-                    `INSERT INTO schedule_runs (season_id, league_id, algorithm_score, status)
-                     VALUES (?, ?, ?, 'current')`,
-                    [seasonId, leagueId, result.satisfactionScore],
+                const scheduleRunId = Number(
+                    insertRun.run(seasonId, leagueId, result.satisfactionScore)
+                        .lastInsertRowid,
                 );
-
-                const scheduleRunId = scheduleRunInsert.lastID;
 
                 for (let index = 0; index < result.schedule.length; index++) {
                     const match = result.schedule[index];
-                    await dbRun(
-                        db,
-                        `INSERT INTO scheduled_matches
-                         (schedule_run_id, home_team_id, away_team_id, time_slot_id, pitch_id, round_number)
-                         VALUES (?, ?, ?, ?, ?, ?)`,
-                        [
-                            scheduleRunId,
-                            match.homeTeamId,
-                            match.awayTeamId,
-                            match.timeSlotId,
-                            match.pitchId,
-                            index + 1,
-                        ],
+                    insertMatch.run(
+                        scheduleRunId,
+                        match.homeTeamId,
+                        match.awayTeamId,
+                        match.timeSlotId,
+                        match.pitchId,
+                        index + 1,
                     );
                 }
 
@@ -332,7 +294,11 @@ export async function POST(request) {
                 });
             }
 
-            await dbRun(db, "COMMIT");
+            return generationResults;
+        });
+
+        try {
+            const generationResults = generateAllLeagues();
 
             const totalMatchCount = generationResults.reduce(
                 (sum, current) => sum + current.matchCount,
@@ -351,12 +317,6 @@ export async function POST(request) {
                 { status: 201 },
             );
         } catch (innerErr) {
-            try {
-                await dbRun(db, "ROLLBACK");
-            } catch {
-                // Ignore rollback errors and return the original failure.
-            }
-
             if (innerErr?.type === "generation-failure") {
                 let errorMessage = `A(z) ${innerErr.leagueId} ligához nem sikerült ütemezést generálni.`;
                 if (innerErr.reason === "not-enough-time-slots") {
@@ -402,13 +362,9 @@ export async function POST(request) {
                 { status: 500 },
             );
         }
-    } catch {
-        return NextResponse.json(
-            { error: "Hiba az ütemezés generálása során" },
-            { status: 500 },
-        );
-    } finally {
-        db.close();
+    } catch (err) {
+        console.error(err);
+        return jsonError(500, "Hiba az ütemezés generálása során");
     }
 }
 
@@ -428,39 +384,28 @@ export async function GET(request) {
         );
     }
 
-    return new Promise((resolve) => {
-        const db = getDb();
+    try {
+        const schedules = getDatabase()
+            .prepare(
+                `SELECT
+                    sr.id,
+                    sr.season_id as seasonId,
+                    sr.league_id as leagueId,
+                    sr.generated_at as generatedAt,
+                    sr.algorithm_score as algorithmScore,
+                    sr.status,
+                    l.name as leagueName,
+                    l.country as leagueCountry
+                 FROM schedule_runs sr
+                 LEFT JOIN leagues l ON l.id = sr.league_id
+                 WHERE sr.season_id = ?
+                 ORDER BY sr.generated_at DESC`,
+            )
+            .all(seasonId);
 
-        db.all(
-            `SELECT 
-                sr.id,
-                sr.season_id as seasonId,
-                sr.league_id as leagueId,
-                sr.generated_at as generatedAt,
-                sr.algorithm_score as algorithmScore,
-                sr.status,
-                l.name as leagueName,
-                l.country as leagueCountry
-             FROM schedule_runs sr
-             LEFT JOIN leagues l ON l.id = sr.league_id
-             WHERE sr.season_id = ?
-             ORDER BY sr.generated_at DESC`,
-            [seasonId],
-            (err, rows) => {
-                if (err) {
-                    db.close();
-                    resolve(
-                        NextResponse.json(
-                            { error: "Hiba az ütemezések lekérdezésekor" },
-                            { status: 500 },
-                        ),
-                    );
-                    return;
-                }
-
-                db.close();
-                resolve(NextResponse.json({ schedules: rows || [] }));
-            },
-        );
-    });
+        return NextResponse.json({ schedules });
+    } catch (err) {
+        console.error(err);
+        return jsonError(500, "Hiba az ütemezések lekérdezésekor");
+    }
 }

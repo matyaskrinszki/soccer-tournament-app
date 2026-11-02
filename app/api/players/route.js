@@ -1,45 +1,34 @@
 import { NextResponse } from "next/server";
-import { getDb } from "../../../lib/db";
+import { getDatabase } from "../../../lib/database";
+import { jsonError } from "../../../lib/api";
 
 export async function GET(request) {
-    return new Promise((resolve) => {
-        const db = getDb();
+    try {
+        const rows = getDatabase()
+            .prepare(
+                `SELECT p.id, p.name, t.id as teamId, t.name as teamName, l.name as leagueName
+                 FROM players p
+                 LEFT JOIN teams t ON t.id = p.team_id
+                 LEFT JOIN leagues l ON l.id = t.league_id
+                 ORDER BY p.name COLLATE NOCASE ASC`,
+            )
+            .all();
 
-        db.all(
-            `SELECT p.id, p.name, t.id as teamId, t.name as teamName, l.name as leagueName
-             FROM players p
-             LEFT JOIN teams t ON t.id = p.team_id
-             LEFT JOIN leagues l ON l.id = t.league_id
-             ORDER BY p.name COLLATE NOCASE ASC`,
-            [],
-            (err, rows) => {
-                db.close();
-                if (err) {
-                    resolve(
-                        NextResponse.json(
-                            {
-                                error: "Hiba történt a játékosok lekérdezésekor",
-                            },
-                            { status: 500 },
-                        ),
-                    );
-                    return;
-                }
+        const players = rows.map((row) => ({
+            id: row.id,
+            name: row.name,
+            team: row.teamId
+                ? {
+                      id: row.teamId,
+                      name: row.teamName,
+                      leagueName: row.leagueName,
+                  }
+                : null,
+        }));
 
-                const players = (rows || []).map((row) => ({
-                    id: row.id,
-                    name: row.name,
-                    team: row.teamId
-                        ? {
-                              id: row.teamId,
-                              name: row.teamName,
-                              leagueName: row.leagueName,
-                          }
-                        : null,
-                }));
-
-                resolve(NextResponse.json({ players }, { status: 200 }));
-            },
-        );
-    });
+        return NextResponse.json({ players }, { status: 200 });
+    } catch (err) {
+        console.error(err);
+        return jsonError(500, "Hiba történt a játékosok lekérdezésekor");
+    }
 }

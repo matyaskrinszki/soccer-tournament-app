@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { getDb } from "../../../../lib/db";
+import { getDatabase } from "../../../../lib/database";
+import { jsonError, serverError } from "../../../../lib/api";
 import { validateAuth } from "../../../../lib/validation";
 import { signToken } from "../../../../lib/auth";
 
@@ -11,100 +12,53 @@ export async function POST(request) {
         // Validate input using shared utility
         const emailError = validateAuth.email(email);
         if (emailError) {
-            return NextResponse.json({ error: emailError }, { status: 400 });
+            return jsonError(400, emailError);
         }
 
         const passwordError = validateAuth.password(password);
         if (passwordError) {
-            return NextResponse.json({ error: passwordError }, { status: 400 });
+            return jsonError(400, passwordError);
         }
 
         // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Get database
-        const db = getDb();
+        // Create player; the UNIQUE constraint on email rejects duplicates
+        let playerId;
+        try {
+            const result = getDatabase()
+                .prepare(
+                    "INSERT INTO players (email, password, name, team_id) VALUES (?, ?, ?, NULL)",
+                )
+                .run(email, hashedPassword, email.split("@")[0]);
+            playerId = Number(result.lastInsertRowid);
+        } catch (err) {
+            if (err.code === "SQLITE_CONSTRAINT_UNIQUE") {
+                return jsonError(400, "Ez az email cím már regisztrálva van");
+            }
+            console.error(err);
+            return jsonError(500, "Nem sikerült létrehozni a játékost");
+        }
 
-        // Check if player exists
-        return new Promise((resolve) => {
-            db.get(
-                "SELECT id FROM players WHERE email = ?",
-                [email],
-                (err, row) => {
-                    if (err) {
-                        db.close();
-                        resolve(
-                            NextResponse.json(
-                                { error: "Adatbázis hiba történt" },
-                                { status: 500 },
-                            ),
-                        );
-                        return;
-                    }
-
-                    if (row) {
-                        db.close();
-                        resolve(
-                            NextResponse.json(
-                                {
-                                    error: "Ez az email cím már regisztrálva van",
-                                },
-                                { status: 400 },
-                            ),
-                        );
-                        return;
-                    }
-
-                    // Create player
-                    db.run(
-                        "INSERT INTO players (email, password, name, team_id) VALUES (?, ?, ?, NULL)",
-                        [email, hashedPassword, email.split("@")[0]],
-                        function (err) {
-                            if (err) {
-                                db.close();
-                                resolve(
-                                    NextResponse.json(
-                                        {
-                                            error: "Nem sikerült létrehozni a játékost",
-                                        },
-                                        { status: 500 },
-                                    ),
-                                );
-                                return;
-                            }
-
-                            // Create JWT token with playerId and role (new users are 'Player' by default)
-                            const token = signToken(
-                                {
-                                    playerId: this.lastID,
-                                    userId: this.lastID,
-                                    email,
-                                    role: "Player",
-                                }
-                            );
-
-                            db.close();
-                            resolve(
-                                NextResponse.json(
-                                    {
-                                        success: true,
-                                        token,
-                                        email,
-                                        playerId: this.lastID,
-                                        role: "Player",
-                                    },
-                                    { status: 201 },
-                                ),
-                            );
-                        },
-                    );
-                },
-            );
+        // Create JWT token with playerId and role (new users are 'Player' by default)
+        const token = signToken({
+            playerId,
+            userId: playerId,
+            email,
+            role: "Player",
         });
-    } catch (err) {
+
         return NextResponse.json(
-            { error: "Szerverhiba történt" },
-            { status: 500 },
+            {
+                success: true,
+                token,
+                email,
+                playerId,
+                role: "Player",
+            },
+            { status: 201 },
         );
+    } catch (err) {
+        return serverError(err);
     }
 }

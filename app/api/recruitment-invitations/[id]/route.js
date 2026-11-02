@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getDb } from "../../../../lib/db";
+import { getDatabase } from "../../../../lib/database";
+import { jsonError, serverError } from "../../../../lib/api";
 import { requireAuth, canAccessPlayerResource } from "../../../../lib/auth";
 
 export async function POST(request, context) {
@@ -12,153 +13,77 @@ export async function POST(request, context) {
     const { id: invitationId } = await context.params;
 
     if (!invitationId) {
-        return NextResponse.json(
-            { error: "Meghívó azonosító hiányzik" },
-            { status: 400 },
-        );
+        return jsonError(400, "Meghívó azonosító hiányzik");
     }
 
     let payload;
     try {
         payload = await request.json();
     } catch (err) {
-        return NextResponse.json(
-            { error: "Érvénytelen kérés" },
-            { status: 400 },
-        );
+        return jsonError(400, "Érvénytelen kérés");
     }
 
     const { action } = payload || {};
 
     if (!action || !["accept", "reject"].includes(action)) {
-        return NextResponse.json(
-            { error: "Érvénytelen akció" },
-            { status: 400 },
-        );
+        return jsonError(400, "Érvénytelen akció");
     }
 
-    const db = getDb();
+    try {
+        const db = getDatabase();
 
-    return new Promise((resolve) => {
         // Get the recruitment invitation
-        db.get(
-            "SELECT id, player_id, team_id, status FROM recruitment_invitations WHERE id = ?",
-            [invitationId],
-            (err, row) => {
-                if (err) {
-                    db.close();
-                    resolve(
-                        NextResponse.json(
-                            { error: "Adatbázis hiba történt" },
-                            { status: 500 },
-                        ),
-                    );
-                    return;
-                }
+        const row = db
+            .prepare(
+                "SELECT id, player_id, team_id, status FROM recruitment_invitations WHERE id = ?",
+            )
+            .get(invitationId);
 
-                if (!row) {
-                    db.close();
-                    resolve(
-                        NextResponse.json(
-                            { error: "A meghívó nem található" },
-                            { status: 404 },
-                        ),
-                    );
-                    return;
-                }
+        if (!row) {
+            return jsonError(404, "A meghívó nem található");
+        }
 
-                // Verify the user is the player being invited or admin
-                if (!canAccessPlayerResource(user, row.player_id)) {
-                    db.close();
-                    resolve(
-                        NextResponse.json(
-                            {
-                                error: "Csak a meghívott játékos kezelheti ezt a meghívót",
-                            },
-                            { status: 403 },
-                        ),
-                    );
-                    return;
-                }
+        // Verify the user is the player being invited or admin
+        if (!canAccessPlayerResource(user, row.player_id)) {
+            return jsonError(
+                403,
+                "Csak a meghívott játékos kezelheti ezt a meghívót",
+            );
+        }
 
-                if (row.status !== "pending") {
-                    db.close();
-                    resolve(
-                        NextResponse.json(
-                            { error: "Ez a meghívó már kezelve lett" },
-                            { status: 400 },
-                        ),
-                    );
-                    return;
-                }
+        if (row.status !== "pending") {
+            return jsonError(400, "Ez a meghívó már kezelve lett");
+        }
 
-                // Update invitation status
-                db.run(
+        // Update the invitation and, when accepting, the player's team atomically
+        let failMessage = "Nem sikerült frissíteni a meghívót";
+        try {
+            db.transaction(() => {
+                db.prepare(
                     "UPDATE recruitment_invitations SET status = ? WHERE id = ?",
-                    [
-                        action === "accept" ? "accepted" : "rejected",
-                        invitationId,
-                    ],
-                    (updateErr) => {
-                        if (updateErr) {
-                            db.close();
-                            resolve(
-                                NextResponse.json(
-                                    {
-                                        error: "Nem sikerült frissíteni a meghívót",
-                                    },
-                                    { status: 500 },
-                                ),
-                            );
-                            return;
-                        }
+                ).run(action === "accept" ? "accepted" : "rejected", invitationId);
 
-                        // If accepting, add player to team
-                        if (action === "accept") {
-                            db.run(
-                                "UPDATE players SET team_id = ? WHERE id = ?",
-                                [row.team_id, row.player_id],
-                                (addErr) => {
-                                    // Also mark any other pending invitations from this player as rejected
-                                    db.run(
-                                        `UPDATE recruitment_invitations SET status = 'rejected'
-                                         WHERE player_id = ? AND team_id != ? AND status = 'pending'`,
-                                        [row.player_id, row.team_id],
-                                        () => {
-                                            db.close();
-                                            if (addErr) {
-                                                resolve(
-                                                    NextResponse.json(
-                                                        {
-                                                            error: "Nem sikerült a játékost a csapathoz adni",
-                                                        },
-                                                        { status: 500 },
-                                                    ),
-                                                );
-                                                return;
-                                            }
-                                            resolve(
-                                                NextResponse.json(
-                                                    { success: true },
-                                                    { status: 200 },
-                                                ),
-                                            );
-                                        },
-                                    );
-                                },
-                            );
-                        } else {
-                            db.close();
-                            resolve(
-                                NextResponse.json(
-                                    { success: true },
-                                    { status: 200 },
-                                ),
-                            );
-                        }
-                    },
-                );
-            },
-        );
-    });
+                if (action === "accept") {
+                    failMessage = "Nem sikerült a játékost a csapathoz adni";
+                    db.prepare("UPDATE players SET team_id = ? WHERE id = ?").run(
+                        row.team_id,
+                        row.player_id,
+                    );
+
+                    // Also mark any other pending invitations for this player as rejected
+                    db.prepare(
+                        `UPDATE recruitment_invitations SET status = 'rejected'
+                         WHERE player_id = ? AND team_id != ? AND status = 'pending'`,
+                    ).run(row.player_id, row.team_id);
+                }
+            })();
+        } catch (err) {
+            console.error(err);
+            return jsonError(500, failMessage);
+        }
+
+        return NextResponse.json({ success: true }, { status: 200 });
+    } catch (err) {
+        return serverError(err);
+    }
 }

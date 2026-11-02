@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getDb } from "../../../../lib/db";
+import { getDatabase } from "../../../../lib/database";
+import { jsonError, serverError } from "../../../../lib/api";
 import { requireAdmin, requireCaptainOrAdmin } from "../../../../lib/auth";
 
 export async function GET(request) {
@@ -8,29 +9,16 @@ export async function GET(request) {
         return user;
     }
 
-    return new Promise((resolve) => {
-        const db = getDb();
+    try {
+        const seasons = getDatabase()
+            .prepare("SELECT * FROM seasons ORDER BY created_at DESC")
+            .all();
 
-        db.all(
-            "SELECT * FROM seasons ORDER BY created_at DESC",
-            [],
-            (err, rows) => {
-                if (err) {
-                    db.close();
-                    resolve(
-                        NextResponse.json(
-                            { error: "Hiba a szezonok lekérdezésekor" },
-                            { status: 500 },
-                        ),
-                    );
-                    return;
-                }
-
-                db.close();
-                resolve(NextResponse.json({ seasons: rows || [] }));
-            },
-        );
-    });
+        return NextResponse.json({ seasons });
+    } catch (err) {
+        console.error(err);
+        return jsonError(500, "Hiba a szezonok lekérdezésekor");
+    }
 }
 
 export async function POST(request) {
@@ -39,79 +27,47 @@ export async function POST(request) {
         return user;
     }
 
-    const body = await request.json();
-    const { name, status, startDate, endDate } = body;
+    try {
+        const body = await request.json();
+        const { name, status, startDate, endDate } = body;
 
-    if (!name) {
-        return NextResponse.json(
-            { error: "Szezon név szükséges" },
-            { status: 400 },
-        );
-    }
+        if (!name) {
+            return jsonError(400, "Szezon név szükséges");
+        }
 
-    return new Promise((resolve) => {
-        const db = getDb();
+        const db = getDatabase();
 
-        db.get(
-            "SELECT id FROM seasons WHERE LOWER(name) = LOWER(?)",
-            [name.trim()],
-            (existingErr, existingRow) => {
-                if (existingErr) {
-                    db.close();
-                    resolve(
-                        NextResponse.json(
-                            { error: "Hiba a szezon létrehozásakor" },
-                            { status: 500 },
-                        ),
-                    );
-                    return;
-                }
+        let seasonId;
+        try {
+            const existingRow = db
+                .prepare("SELECT id FROM seasons WHERE LOWER(name) = LOWER(?)")
+                .get(name.trim());
+            if (existingRow) {
+                return jsonError(400, "Ilyen névvel már létezik szezon");
+            }
 
-                if (existingRow) {
-                    db.close();
-                    resolve(
-                        NextResponse.json(
-                            { error: "Ilyen névvel már létezik szezon" },
-                            { status: 400 },
-                        ),
-                    );
-                    return;
-                }
-
-                db.run(
+            const result = db
+                .prepare(
                     `INSERT INTO seasons (league_id, name, status, start_date, end_date)
                      VALUES (?, ?, ?, ?, ?)`,
-                    [
-                        null,
-                        name.trim(),
-                        status || "setup",
-                        startDate || null,
-                        endDate || null,
-                    ],
-                    function (err) {
-                        if (err) {
-                            db.close();
-                            resolve(
-                                NextResponse.json(
-                                    { error: "Hiba a szezon létrehozásakor" },
-                                    { status: 500 },
-                                ),
-                            );
-                            return;
-                        }
-
-                        db.close();
-                        resolve(
-                            NextResponse.json(
-                                { seasonId: this.lastID },
-                                { status: 201 },
-                            ),
-                        );
-                    },
+                )
+                .run(
+                    null,
+                    name.trim(),
+                    status || "setup",
+                    startDate || null,
+                    endDate || null,
                 );
-            },
-        );
-    });
+            seasonId = Number(result.lastInsertRowid);
+        } catch (err) {
+            console.error(err);
+            return jsonError(500, "Hiba a szezon létrehozásakor");
+        }
+
+        return NextResponse.json({ seasonId }, { status: 201 });
+    } catch (err) {
+        return serverError(err);
+    }
 }
 
 export async function PUT(request) {
@@ -120,50 +76,34 @@ export async function PUT(request) {
         return user;
     }
 
-    const body = await request.json();
-    const { seasonId, status, startDate, endDate } = body;
+    try {
+        const body = await request.json();
+        const { seasonId, status, startDate, endDate } = body;
 
-    if (!seasonId) {
-        return NextResponse.json(
-            { error: "Szezon ID szükséges" },
-            { status: 400 },
-        );
+        if (!seasonId) {
+            return jsonError(400, "Szezon ID szükséges");
+        }
+
+        let result;
+        try {
+            result = getDatabase()
+                .prepare(
+                    `UPDATE seasons
+                     SET status = ?, start_date = ?, end_date = ?
+                     WHERE id = ?`,
+                )
+                .run(status || "setup", startDate || null, endDate || null, seasonId);
+        } catch (err) {
+            console.error(err);
+            return jsonError(500, "Hiba a szezon frissítésekor");
+        }
+
+        if (result.changes === 0) {
+            return jsonError(404, "Szezon nem található");
+        }
+
+        return NextResponse.json({ success: true }, { status: 200 });
+    } catch (err) {
+        return serverError(err);
     }
-
-    return new Promise((resolve) => {
-        const db = getDb();
-
-        db.run(
-            `UPDATE seasons 
-             SET status = ?, start_date = ?, end_date = ?
-             WHERE id = ?`,
-            [status || "setup", startDate || null, endDate || null, seasonId],
-            function (err) {
-                if (err) {
-                    db.close();
-                    resolve(
-                        NextResponse.json(
-                            { error: "Hiba a szezon frissítésekor" },
-                            { status: 500 },
-                        ),
-                    );
-                    return;
-                }
-
-                if (this.changes === 0) {
-                    db.close();
-                    resolve(
-                        NextResponse.json(
-                            { error: "Szezon nem található" },
-                            { status: 404 },
-                        ),
-                    );
-                    return;
-                }
-
-                db.close();
-                resolve(NextResponse.json({ success: true }, { status: 200 }));
-            },
-        );
-    });
 }

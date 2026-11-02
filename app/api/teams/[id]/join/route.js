@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getDb } from "../../../../../lib/db";
 
 export async function POST(request, context) {
     let teamId = context?.params?.id;
@@ -41,18 +40,11 @@ export async function POST(request, context) {
         );
     }
 
-    const db = getDb();
-
-    return new Promise((resolve) => {
-        // Forward to join-requests endpoint
-        db.close();
-        resolve(
-            NextResponse.json(
-                {
-                    error: "Használd a /api/join-requests végpontot a csapathoz csatlakozáshoz",
-                },
-                { status: 410 },
-            ),
-        );
-    });
+    // Forward to join-requests endpoint
+    return NextResponse.json(
+        {
+            error: "Használd a /api/join-requests végpontot a csapathoz csatlakozáshoz",
+        },
+        { status: 410 },
+    );
 }

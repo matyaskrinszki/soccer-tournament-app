@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getDb } from "../../../../../lib/db";
 
 export async function POST(request, context) {
     let teamId = context?.params?.id;
@@ -37,18 +36,11 @@ export async function POST(request, context) {
         return NextResponse.json({ error: "Hiányzó adatok" }, { status: 400 });
     }
 
-    const db = getDb();
-
-    return new Promise((resolve) => {
-        // Forward to recruitment-invitations endpoint
-        db.close();
-        resolve(
-            NextResponse.json(
-                {
-                    error: "Használd a /api/recruitment-invitations végpontot a játékos meghívásához",
-                },
-                { status: 410 },
-            ),
-        );
-    });
+    // Forward to recruitment-invitations endpoint
+    return NextResponse.json(
+        {
+            error: "Használd a /api/recruitment-invitations végpontot a játékos meghívásához",
+        },
+        { status: 410 },
+    );
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getDb } from "../../../lib/db";
+import { getDatabase } from "../../../lib/database";
+import { jsonError, serverError } from "../../../lib/api";
 import { requireAuth } from "../../../lib/auth";
 
 export async function POST(request) {
@@ -13,139 +14,68 @@ export async function POST(request) {
     try {
         payload = await request.json();
     } catch (err) {
-        return NextResponse.json(
-            { error: "Érvénytelen kérés" },
-            { status: 400 },
-        );
+        return jsonError(400, "Érvénytelen kérés");
     }
 
     const { name, leagueId } = payload || {};
 
     if (!name || !leagueId) {
-        return NextResponse.json({ error: "Hiányzó adatok" }, { status: 400 });
+        return jsonError(400, "Hiányzó adatok");
     }
 
     const playerId = user.playerId;
 
-    const db = getDb();
+    try {
+        const db = getDatabase();
 
-    return new Promise((resolve) => {
-        db.get(
-            "SELECT id FROM leagues WHERE id = ?",
-            [leagueId],
-            (leagueErr, leagueRow) => {
-                if (leagueErr) {
-                    db.close();
-                    resolve(
-                        NextResponse.json(
-                            { error: "Adatbázis hiba történt" },
-                            { status: 500 },
-                        ),
-                    );
-                    return;
-                }
+        const leagueRow = db
+            .prepare("SELECT id FROM leagues WHERE id = ?")
+            .get(leagueId);
+        if (!leagueRow) {
+            return jsonError(404, "A liga nem található");
+        }
 
-                if (!leagueRow) {
-                    db.close();
-                    resolve(
-                        NextResponse.json(
-                            { error: "A liga nem található" },
-                            { status: 404 },
-                        ),
-                    );
-                    return;
-                }
+        const playerRow = db
+            .prepare("SELECT id, team_id FROM players WHERE id = ?")
+            .get(playerId);
+        if (!playerRow) {
+            return jsonError(404, "A játékos nem található");
+        }
 
-                db.get(
-                    "SELECT id, team_id FROM players WHERE id = ?",
-                    [playerId],
-                    (playerErr, playerRow) => {
-                        if (playerErr) {
-                            db.close();
-                            resolve(
-                                NextResponse.json(
-                                    { error: "Adatbázis hiba történt" },
-                                    { status: 500 },
-                                ),
-                            );
-                            return;
-                        }
+        if (playerRow.team_id) {
+            return jsonError(
+                400,
+                "Csak csapat nélküli játékos hozhat létre új csapatot",
+            );
+        }
 
-                        if (!playerRow) {
-                            db.close();
-                            resolve(
-                                NextResponse.json(
-                                    { error: "A játékos nem található" },
-                                    { status: 404 },
-                                ),
-                            );
-                            return;
-                        }
+        // Create the team and make the player its captain atomically
+        let failMessage = "Nem sikerült létrehozni a csapatot";
+        let newTeamId;
+        try {
+            db.transaction(() => {
+                const result = db
+                    .prepare(
+                        "INSERT INTO teams (name, league_id, captain_player_id, matches, wins, draws, losses, points) VALUES (?, ?, ?, 0, 0, 0, 0, 0)",
+                    )
+                    .run(name.trim(), leagueId, playerId);
+                newTeamId = Number(result.lastInsertRowid);
 
-                        if (playerRow.team_id) {
-                            db.close();
-                            resolve(
-                                NextResponse.json(
-                                    {
-                                        error: "Csak csapat nélküli játékos hozhat létre új csapatot",
-                                    },
-                                    { status: 400 },
-                                ),
-                            );
-                            return;
-                        }
+                failMessage = "Nem sikerült a játékost a csapathoz rendelni";
+                db.prepare(
+                    "UPDATE players SET team_id = ?, role = ? WHERE id = ?",
+                ).run(newTeamId, "Captain", playerId);
+            })();
+        } catch (err) {
+            console.error(err);
+            return jsonError(500, failMessage);
+        }
 
-                        db.run(
-                            "INSERT INTO teams (name, league_id, captain_player_id, matches, wins, draws, losses, points) VALUES (?, ?, ?, 0, 0, 0, 0, 0)",
-                            [name.trim(), leagueId, playerId],
-                            function (teamErr) {
-                                if (teamErr) {
-                                    db.close();
-                                    resolve(
-                                        NextResponse.json(
-                                            {
-                                                error: "Nem sikerült létrehozni a csapatot",
-                                            },
-                                            { status: 500 },
-                                        ),
-                                    );
-                                    return;
-                                }
-
-                                const newTeamId = this.lastID;
-                                db.run(
-                                    "UPDATE players SET team_id = ?, role = ? WHERE id = ?",
-                                    [newTeamId, "Captain", playerId],
-                                    (updateErr) => {
-                                        db.close();
-                                        if (updateErr) {
-                                            resolve(
-                                                NextResponse.json(
-                                                    {
-                                                        error: "Nem sikerült a játékost a csapathoz rendelni",
-                                                    },
-                                                    { status: 500 },
-                                                ),
-                                            );
-                                            return;
-                                        }
-
-                                        resolve(
-                                            NextResponse.json(
-                                                {
-                                                    success: true,
-                                                    teamId: newTeamId,
-                                                },
-                                                { status: 201 },
-                                            ),
-                                        );
-                                    },
-                                );
-                            },
-                        );
-                    },
-                );
-            },
+        return NextResponse.json(
+            { success: true, teamId: newTeamId },
+            { status: 201 },
         );
-    });
+    } catch (err) {
+        return serverError(err);
+    }
 }
