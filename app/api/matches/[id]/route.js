@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getDb, initializeDb } from '../../../../lib/db';
-
-initializeDb();
+import { getDb } from '../../../../lib/db';
 
 export async function GET(request, context) {
     const { id } = await context.params;

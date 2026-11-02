@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { getDb, initializeDb } from "../../../../lib/db";
+import { getDb } from "../../../../lib/db";
 import { requireAuth, canAccessPlayerResource } from "../../../../lib/auth";
-
-initializeDb();
 
 export async function POST(request, context) {
     // Require authentication

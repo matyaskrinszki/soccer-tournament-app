@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
-import { getDb, initializeDb } from "../../../../lib/db";
+import { getDb } from "../../../../lib/db";
 import { requireAdmin } from "../../../../lib/auth";
 import { generateSchedule, validateSchedule } from "../../../../lib/scheduler";
-
-initializeDb();
 
 const MIN_PREFERRED = 8;
 const MAX_UNAVAILABLE = 8;

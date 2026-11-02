@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { getDb, initializeDb } from "../../../../lib/db";
+import { getDb } from "../../../../lib/db";
 import { validateAuth } from "../../../../lib/validation";
 import { getUserFromRequest, getPlayerById, requireAuth, canAccessPlayerResource } from "../../../../lib/auth";
-
-initializeDb();
 
 export async function GET(request, context) {
     const { id } = await context.params;

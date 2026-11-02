@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { getDb, initializeDb } from "../../../lib/db";
+import { getDb } from "../../../lib/db";
 import { dbAll } from "../../../lib/db-async";
-
-initializeDb();
 
 // Season statuses whose schedule is public. In "setup" and "team-preferences"
 // the schedule is still being prepared, so guests don't see it yet.

@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { getDb, initializeDb } from "../../../../lib/db";
+import { getDb } from "../../../../lib/db";
 import { validateAuth } from "../../../../lib/validation";
 import { signToken } from "../../../../lib/auth";
-
-initializeDb();
 
 export async function POST(request) {
     try {

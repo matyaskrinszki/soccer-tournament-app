@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { getDb, initializeDb } from "../../../../../lib/db";
+import { getDb } from "../../../../../lib/db";
 import { requireAdmin } from "../../../../../lib/auth";
-
-initializeDb();
 
 const HOURLY_WINDOWS = [
     ["17:00", "18:00"],

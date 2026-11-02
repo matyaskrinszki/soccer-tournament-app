@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { getDb, initializeDb } from "../../../lib/db";
+import { getDb } from "../../../lib/db";
 import { requireAuth } from "../../../lib/auth";
-
-initializeDb();
 
 export async function GET(request) {
     // Require authentication

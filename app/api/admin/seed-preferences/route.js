@@ -3,7 +3,7 @@
 // without logging in as each captain.
 
 import { NextResponse } from "next/server";
-import { getDb, initializeDb } from "../../../../lib/db";
+import { getDb } from "../../../../lib/db";
 import { requireAdmin } from "../../../../lib/auth";
 import { dbGet, dbAll, dbRun } from "../../../../lib/db-async";
 import {
@@ -13,8 +13,6 @@ import {
     START_TIMES,
     buildRecurringKey,
 } from "../../../../lib/preference-rules";
-
-initializeDb();
 
 const ALL_LEAGUES = "all";
 // Preferences may only be seeded before a schedule exists

@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { getDb, initializeDb } from "../../../../lib/db";
+import { getDb } from "../../../../lib/db";
 import { requireCaptainOrAdmin, isCaptainOfTeam } from "../../../../lib/auth";
-
-initializeDb();
 
 const VALID_PREFERENCES = ["preferred", "unavailable", "neutral"];
 const MAX_UNAVAILABLE = 8;
