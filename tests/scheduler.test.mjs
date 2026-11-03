@@ -3,7 +3,11 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { generateSchedule, validateSchedule } from "../lib/scheduler.js";
+import {
+    generateSchedule,
+    validateSchedule,
+    DEFAULT_MAX_SEARCH_STEPS,
+} from "../lib/scheduler.js";
 
 // Build slots for one or more evenings.
 // layout = { "17:00": 2, "18:00": 1 } means 2 pitches at 17:00 and 1 at 18:00.
@@ -311,6 +315,191 @@ describe("generateSchedule", () => {
 
             assert.equal(result.success, true);
             assert.ok(result.satisfactionScore > 33);
+        });
+    });
+
+    describe("weekly match cap", () => {
+        const teamIds = [1, 2, 3, 4, 5, 6];
+        // Mondays of 5 consecutive weeks
+        const fiveMondays = [
+            "2026-03-02",
+            "2026-03-09",
+            "2026-03-16",
+            "2026-03-23",
+            "2026-03-30",
+        ];
+
+        // Keyed by date; the tests using it have one date per week
+        function matchesPerTeamPerDate(schedule, slots) {
+            const slotById = new Map(slots.map((s) => [s.id, s]));
+            const counts = new Map();
+            for (const match of schedule) {
+                const date = slotById.get(match.timeSlotId).slotDate;
+                for (const teamId of [match.homeTeamId, match.awayTeamId]) {
+                    const key = `${teamId}|${date}`;
+                    counts.set(key, (counts.get(key) || 0) + 1);
+                }
+            }
+            return counts;
+        }
+
+        it("fits 6 teams into exactly 5 weeks with 1 match per team per week", () => {
+            // One evening per week, 3 pitches: every week every team must play once
+            const slots = buildSlots({ "17:00": 3 }, fiveMondays);
+            const result = generateSchedule({
+                teamIds,
+                timeSlots: slots,
+                teamPreferences: new Map(),
+                maxMatchesPerTeamPerWeek: 1,
+            });
+
+            assert.equal(result.success, true);
+            assertRoundRobinComplete(result.schedule, teamIds);
+            for (const [key, count] of matchesPerTeamPerDate(result.schedule, slots)) {
+                assert.equal(count, 1, `${key} has ${count} matches`);
+            }
+        });
+
+        it("respects a cap of 3 even when one week has room for everything", () => {
+            // Week 1 alone has enough slots for all 15 matches
+            const slots = buildSlots({ "17:00": 3, "18:00": 3, "19:00": 3 }, [
+                "2026-03-02",
+                "2026-03-03",
+                "2026-03-04",
+                "2026-03-09",
+                "2026-03-10",
+            ]);
+            const slotById = new Map(slots.map((s) => [s.id, s]));
+            const weekOf = (date) => (date < "2026-03-09" ? "w1" : "w2");
+
+            const result = generateSchedule({
+                teamIds,
+                timeSlots: slots,
+                teamPreferences: new Map(),
+                maxMatchesPerTeamPerWeek: 3,
+            });
+            assert.equal(result.success, true);
+
+            const counts = new Map();
+            for (const match of result.schedule) {
+                const week = weekOf(slotById.get(match.timeSlotId).slotDate);
+                for (const teamId of [match.homeTeamId, match.awayTeamId]) {
+                    const key = `${teamId}|${week}`;
+                    counts.set(key, (counts.get(key) || 0) + 1);
+                }
+            }
+            for (const [key, count] of counts) {
+                assert.ok(count <= 3, `${key} has ${count} matches`);
+            }
+        });
+
+        it("fails fast when the season has too few weeks", () => {
+            // 18 slots for 15 matches, so only the week count is the problem
+            const slots = buildSlots({ "17:00": 3, "18:00": 3, "19:00": 3 }, [
+                "2026-03-02",
+                "2026-03-09",
+            ]);
+            const result = generateSchedule({
+                teamIds,
+                timeSlots: slots,
+                teamPreferences: new Map(),
+                maxMatchesPerTeamPerWeek: 1,
+            });
+
+            assert.equal(result.success, false);
+            assert.equal(result.reason, "not-enough-weeks");
+            assert.equal(result.weekCount, 2);
+            assert.equal(result.requiredWeeks, 5);
+            assert.deepEqual(result.schedule, []);
+        });
+
+        it("counts weeks Monday to Sunday", () => {
+            const run = (dates) =>
+                generateSchedule({
+                    teamIds: [1, 2, 3],
+                    timeSlots: buildSlots({ "17:00": 2 }, dates),
+                    teamPreferences: new Map(),
+                    maxMatchesPerTeamPerWeek: 1,
+                });
+
+            // Monday and Friday: same week
+            const sameWeek = run(["2026-03-02", "2026-03-06"]);
+            assert.equal(sameWeek.reason, "not-enough-weeks");
+            assert.equal(sameWeek.weekCount, 1);
+
+            // Sunday and the next Monday: two weeks
+            const twoWeeks = run(["2026-03-08", "2026-03-09"]);
+            assert.notEqual(twoWeeks.reason, "not-enough-weeks");
+        });
+
+        it("ignores the cap for slots without a date", () => {
+            const weekly = [0, 1, 2].map((dayOfWeek) => ({
+                id: dayOfWeek + 1,
+                pitchId: 1,
+                slotDate: null,
+                dayOfWeek,
+                startTime: "17:00",
+                endTime: "",
+            }));
+            const result = generateSchedule({
+                teamIds: [1, 2, 3],
+                timeSlots: weekly,
+                teamPreferences: new Map(),
+                maxMatchesPerTeamPerWeek: 1,
+            });
+            assert.equal(result.success, true);
+        });
+    });
+
+    describe("search step limit", () => {
+        it("gives up with search-limit-reached when the limit is too low", () => {
+            // Scenario A needs at least 6 placements
+            const result = generateSchedule({
+                teamIds: [1, 2, 3, 4],
+                timeSlots: buildSlots(SCENARIO_A_LAYOUT),
+                teamPreferences: new Map(),
+                maxSearchSteps: 3,
+            });
+
+            assert.equal(result.success, false);
+            assert.equal(result.reason, "search-limit-reached");
+            assert.equal(result.searchSteps, 3);
+            assert.deepEqual(result.schedule, []);
+            assert.equal(result.satisfactionScore, 0);
+        });
+
+        it("stops an infeasible search that would otherwise run for a very long time", () => {
+            // 8 teams each need 7 distinct times, but only 6 exist. Passes the
+            // slot-count check, so plain backtracking would explore a huge tree.
+            const slots = buildSlots({
+                "17:00": 5,
+                "18:00": 5,
+                "19:00": 5,
+                "20:00": 5,
+                "21:00": 5,
+                "22:00": 5,
+            });
+            const result = generateSchedule({
+                teamIds: [1, 2, 3, 4, 5, 6, 7, 8],
+                timeSlots: slots,
+                teamPreferences: new Map(),
+                maxSearchSteps: 5_000,
+            });
+
+            assert.equal(result.success, false);
+            assert.equal(result.reason, "search-limit-reached");
+            assert.equal(result.searchSteps, 5_000);
+        });
+
+        it("reports the steps used on success, within the limit", () => {
+            const result = generateSchedule({
+                teamIds: [1, 2, 3, 4],
+                timeSlots: buildSlots(SCENARIO_A_LAYOUT),
+                teamPreferences: new Map(),
+            });
+            assert.equal(result.success, true);
+            assert.ok(result.searchSteps >= result.matchCount);
+            assert.ok(result.searchSteps <= DEFAULT_MAX_SEARCH_STEPS);
         });
     });
 

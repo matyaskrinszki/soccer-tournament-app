@@ -10,6 +10,9 @@ import {
     buildRecurringKey,
 } from "../../../../lib/preference-rules";
 
+// A team plays at most this many matches in one calendar week (Monday-Sunday)
+const MAX_MATCHES_PER_TEAM_PER_WEEK = 1;
+
 export async function POST(request) {
     const user = await requireAdmin(request);
     if (user instanceof NextResponse) {
@@ -229,6 +232,7 @@ export async function POST(request) {
                     teamIds,
                     timeSlots: currentFreeSlots,
                     teamPreferences,
+                    maxMatchesPerTeamPerWeek: MAX_MATCHES_PER_TEAM_PER_WEEK,
                 });
 
                 if (!result.success) {
@@ -237,6 +241,8 @@ export async function POST(request) {
                         leagueId,
                         matchCount: result.matchCount,
                         reason: result.reason,
+                        weekCount: result.weekCount,
+                        requiredWeeks: result.requiredWeeks,
                     };
                 }
 
@@ -312,8 +318,12 @@ export async function POST(request) {
                 let errorMessage = `A(z) ${innerErr.leagueId} ligához nem sikerült ütemezést generálni.`;
                 if (innerErr.reason === "not-enough-time-slots") {
                     errorMessage = `A(z) ${innerErr.leagueId} ligához nem sikerült ütemezést generálni: ${innerErr.matchCount} mérkőzéshez nincs elég időpont.`;
+                } else if (innerErr.reason === "not-enough-weeks") {
+                    errorMessage = `A(z) ${innerErr.leagueId} ligához nem sikerült ütemezést generálni: heti ${MAX_MATCHES_PER_TEAM_PER_WEEK} mérkőzés mellett legalább ${innerErr.requiredWeeks} hét kell, a szezonban csak ${innerErr.weekCount} hét van.`;
                 } else if (innerErr.reason === "no-valid-assignment-found") {
                     errorMessage = `A(z) ${innerErr.leagueId} ligához nem sikerült ütemezést generálni: Nem található érvényes ütemezés.`;
+                } else if (innerErr.reason === "search-limit-reached") {
+                    errorMessage = `A(z) ${innerErr.leagueId} ligához nem sikerült ütemezést generálni: a keresés elérte a lépéskorlátot. Adj hozzá több időpontot vagy pályát.`;
                 }
                 return NextResponse.json(
                     {
