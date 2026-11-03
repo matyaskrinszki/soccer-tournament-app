@@ -2,22 +2,14 @@ import { NextResponse } from "next/server";
 import { getDatabase } from "../../../../lib/database";
 import { jsonError, serverError } from "../../../../lib/api";
 import { requireCaptainOrAdmin, isCaptainOfTeam } from "../../../../lib/auth";
+import {
+    MIN_PREFERRED,
+    MAX_UNAVAILABLE,
+    START_TIMES,
+    buildRecurringKey,
+} from "../../../../lib/preference-rules";
 
 const VALID_PREFERENCES = ["preferred", "unavailable", "neutral"];
-const MAX_UNAVAILABLE = 8;
-const MIN_PREFERRED = 8;
-const START_TIMES = new Set([
-    "17:00",
-    "18:00",
-    "19:00",
-    "20:00",
-    "21:00",
-    "22:00",
-]);
-
-function buildRecurringKey(dayOfWeek, startTime) {
-    return `${dayOfWeek}|${startTime}`;
-}
 
 export async function GET(request) {
     const user = await requireCaptainOrAdmin(request);

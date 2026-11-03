@@ -3,21 +3,12 @@ import { getDatabase } from "../../../../lib/database";
 import { jsonError } from "../../../../lib/api";
 import { requireAdmin } from "../../../../lib/auth";
 import { generateSchedule, validateSchedule } from "../../../../lib/scheduler";
-
-const MIN_PREFERRED = 8;
-const MAX_UNAVAILABLE = 8;
-const START_TIMES = new Set([
-    "17:00",
-    "18:00",
-    "19:00",
-    "20:00",
-    "21:00",
-    "22:00",
-]);
-
-function buildRecurringKey(dayOfWeek, startTime) {
-    return `${dayOfWeek}|${startTime}`;
-}
+import {
+    MIN_PREFERRED,
+    MAX_UNAVAILABLE,
+    START_TIMES,
+    buildRecurringKey,
+} from "../../../../lib/preference-rules";
 
 export async function POST(request) {
     const user = await requireAdmin(request);
@@ -399,7 +390,7 @@ export async function GET(request) {
                  FROM schedule_runs sr
                  LEFT JOIN leagues l ON l.id = sr.league_id
                  WHERE sr.season_id = ?
-                 ORDER BY sr.generated_at DESC`,
+                 ORDER BY sr.generated_at DESC, sr.id DESC`,
             )
             .all(seasonId);
 

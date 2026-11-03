@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDatabase } from "../../../../lib/database";
-import { jsonError, serverError } from "../../../../lib/api";
+import { jsonError, serverError, isForeignKeyError } from "../../../../lib/api";
 import { requireAdmin, requireCaptainOrAdmin } from "../../../../lib/auth";
 
 export async function GET(request) {
@@ -84,6 +84,12 @@ export async function DELETE(request) {
                     .prepare("DELETE FROM time_slots WHERE id = ?")
                     .run(timeSlotId);
             } catch (err) {
+                if (isForeignKeyError(err)) {
+                    return jsonError(
+                        400,
+                        "Az időpont nem törölhető, mert preferenciák vagy ütemezett mérkőzések hivatkoznak rá",
+                    );
+                }
                 console.error(err);
                 return jsonError(500, "Hiba az időpont törlésekor");
             }

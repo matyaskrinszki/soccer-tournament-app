@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDatabase } from "../../../../lib/database";
-import { jsonError, serverError } from "../../../../lib/api";
+import { jsonError, serverError, isForeignKeyError } from "../../../../lib/api";
 import { requireAdmin } from "../../../../lib/auth";
 
 export async function GET(request) {
@@ -54,7 +54,7 @@ export async function POST(request) {
                     `INSERT INTO pitches (season_id, name, location, created_by_admin)
                      VALUES (?, ?, ?, ?)`,
                 )
-                .run(seasonId, name, location || null, user.id);
+                .run(seasonId, name, location || null, user.playerId);
         } catch (err) {
             console.error(err);
             return jsonError(500, "Hiba a pálya létrehozásakor");
@@ -89,6 +89,12 @@ export async function DELETE(request) {
                 .prepare("DELETE FROM pitches WHERE id = ?")
                 .run(pitchId);
         } catch (err) {
+            if (isForeignKeyError(err)) {
+                return jsonError(
+                    400,
+                    "A pálya nem törölhető, mert időpontok vagy ütemezett mérkőzések hivatkoznak rá",
+                );
+            }
             console.error(err);
             return jsonError(500, "Hiba a pálya törlésekor");
         }

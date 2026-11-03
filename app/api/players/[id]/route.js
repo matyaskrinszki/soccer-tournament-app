@@ -8,17 +8,18 @@ import { getUserFromRequest, getPlayerById, requireAuth, canAccessPlayerResource
 export async function GET(request, context) {
     const { id } = await context.params;
 
-    const user = getUserFromRequest(request);
-    if(user) {
-        user.role = getPlayerById(user.playerId)?.role ?? null;
-    }
-
     if (!id) {
         return jsonError(400, "A játékos azonosító hiányzik");
     }
 
+    const user = getUserFromRequest(request);
+
     let failMessage = "Hiba történt a játékos lekérdezésekor";
     try {
+        if (user) {
+            user.role = getPlayerById(user.playerId)?.role ?? null;
+        }
+
         const db = getDatabase();
 
         const row = db

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getDatabase } from "../../../../lib/database";
 import { jsonError, serverError } from "../../../../lib/api";
 import { requireAuth, canAccessPlayerResource } from "../../../../lib/auth";
+import { addPlayerToTeam } from "../../../../lib/membership";
 
 export async function POST(request, context) {
     // Require authentication
@@ -35,7 +36,10 @@ export async function POST(request, context) {
         // Get the recruitment invitation
         const row = db
             .prepare(
-                "SELECT id, player_id, team_id, status FROM recruitment_invitations WHERE id = ?",
+                `SELECT ri.id, ri.player_id, ri.team_id, ri.status, p.team_id as player_team_id
+                 FROM recruitment_invitations ri
+                 JOIN players p ON p.id = ri.player_id
+                 WHERE ri.id = ?`,
             )
             .get(invitationId);
 
@@ -55,6 +59,10 @@ export async function POST(request, context) {
             return jsonError(400, "Ez a meghívó már kezelve lett");
         }
 
+        if (action === "accept" && row.player_team_id !== null) {
+            return jsonError(400, "Már egy csapat tagja vagy");
+        }
+
         // Update the invitation and, when accepting, the player's team atomically
         let failMessage = "Nem sikerült frissíteni a meghívót";
         try {
@@ -65,16 +73,8 @@ export async function POST(request, context) {
 
                 if (action === "accept") {
                     failMessage = "Nem sikerült a játékost a csapathoz adni";
-                    db.prepare("UPDATE players SET team_id = ? WHERE id = ?").run(
-                        row.team_id,
-                        row.player_id,
-                    );
-
-                    // Also mark any other pending invitations for this player as rejected
-                    db.prepare(
-                        `UPDATE recruitment_invitations SET status = 'rejected'
-                         WHERE player_id = ? AND team_id != ? AND status = 'pending'`,
-                    ).run(row.player_id, row.team_id);
+                    // Also closes the player's other pending invitations and requests
+                    addPlayerToTeam(db, row.player_id, row.team_id);
                 }
             })();
         } catch (err) {
