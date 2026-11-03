@@ -1,4 +1,4 @@
-// Tests for lib/scheduler.js. Scenarios mirror scripts/scheduler-playground.mjs.
+// Tests for lib/scheduler.js.
 // Run: npm test
 
 import { describe, it } from "node:test";

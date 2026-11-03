@@ -273,3 +273,101 @@ a.btn-primary {
     display: inline-block;
     text-decoration: none;
 }
+
+/* Season picker shown above the per-season tabs */
+.season-picker {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.season-picker label {
+    font-weight: 600;
+    color: #1a1a1a;
+}
+
+.season-picker select {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid #D8C4B6;
+    border-radius: 6px;
+    background: #ffffff;
+    font-size: 0.95rem;
+    font-family: inherit;
+    min-width: 240px;
+}
+
+/* Overview */
+.stat-detail {
+    margin-top: 0.5rem !important;
+    font-size: 0.85rem;
+}
+
+.admin-card.attention {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    border-left: 4px solid #3E5879;
+}
+
+/* Seasons table */
+.admin-card table tbody tr.selectable-row {
+    cursor: pointer;
+}
+
+.admin-card table tbody tr.selected {
+    background: #f0ebe3;
+}
+
+/* Results */
+.results-filters {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.filter-chip {
+    padding: 0.4rem 0.9rem;
+    border: 1px solid #D8C4B6;
+    border-radius: 999px;
+    background: #ffffff;
+    color: #3E5879;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.filter-chip.active {
+    background: #3E5879;
+    border-color: #3E5879;
+    color: #ffffff;
+}
+
+.results-table .team-cell {
+    color: #1a1a1a;
+    font-weight: 600;
+}
+
+.score-form {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.admin-card .score-form input {
+    width: 3.5rem;
+    margin-bottom: 0;
+    padding: 0.4rem;
+    text-align: center;
+}
+
+.score-pending {
+    font-size: 0.85rem;
+    color: #8a8a8a;
+}
+
+.btn-small {
+    padding: 0.45rem 0.9rem;
+    font-size: 0.85rem;
+}

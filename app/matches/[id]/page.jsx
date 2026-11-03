@@ -3,8 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import Header from '../../components/Header';
-import AuthModal from '../../components/AuthModal';
 import './match.css';
 
 export default function MatchPage() {
@@ -14,34 +12,6 @@ export default function MatchPage() {
     const [match, setMatch] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-
-    const [isLoggedIn, setIsLoggedIn] = useState(() => {
-        if (typeof window === 'undefined') return false;
-        const token = localStorage.getItem('token');
-        const email = localStorage.getItem('email');
-        return Boolean(token && email);
-    });
-    const [userEmail, setUserEmail] = useState(() => {
-        if (typeof window === 'undefined') return '';
-        return localStorage.getItem('email') ?? '';
-    });
-    const [showAuthModal, setShowAuthModal] = useState(false);
-    const [authMode, setAuthMode] = useState('login');
-
-    const handleOpenAuth = (mode) => {
-        setAuthMode(mode);
-        setShowAuthModal(true);
-    };
-
-    const handleCloseAuth = () => {
-        setShowAuthModal(false);
-    };
-
-    const handleAuthSuccess = (email, token) => {
-        setIsLoggedIn(true);
-        setUserEmail(email);
-        setShowAuthModal(false);
-    };
 
     useEffect(() => {
         if (!id) return;
@@ -82,13 +52,6 @@ export default function MatchPage() {
 
     return (
         <div className="match-page">
-            <Header
-                isLoggedIn={isLoggedIn}
-                userEmail={userEmail}
-                setIsLoggedIn={setIsLoggedIn}
-                onOpenAuth={handleOpenAuth}
-            />
-
             <main className="match-container">
                 <div className="match-breadcrumb">
                     <Link href="/tabella">Vissza a táblához</Link>
@@ -181,14 +144,6 @@ export default function MatchPage() {
                     );
                 })()}
             </main>
-
-            {showAuthModal && (
-                <AuthModal
-                    mode={authMode}
-                    onClose={handleCloseAuth}
-                    onSuccess={handleAuthSuccess}
-                />
-            )}
         </div>
     );
 }

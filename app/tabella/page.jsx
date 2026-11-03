@@ -3,45 +3,8 @@
 import './page.css';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import Header from '../components/Header';
-import AuthModal from '../components/AuthModal';
 
 export default function StandingsPage() {
-    const [isLoggedIn, setIsLoggedIn] = useState(() => {
-        if (typeof window === 'undefined') return false;
-        const token = localStorage.getItem('token');
-        const email = localStorage.getItem('email');
-        return Boolean(token && email);
-    });
-    const [userEmail, setUserEmail] = useState(() => {
-        if (typeof window === 'undefined') return '';
-        return localStorage.getItem('email') ?? '';
-    });
-    const [showAuthModal, setShowAuthModal] = useState(false);
-    const [authMode, setAuthMode] = useState('login');
-    const [successMessage, setSuccessMessage] = useState('');
-
-    const handleOpenAuth = (mode) => {
-        setAuthMode(mode);
-        setShowAuthModal(true);
-    };
-
-    const handleCloseAuth = () => {
-        setShowAuthModal(false);
-    };
-
-    const handleAuthSuccess = (email, _token, info) => {
-        if (info) {
-            setSuccessMessage(info.message);
-            setShowAuthModal(false);
-            setTimeout(() => setSuccessMessage(''), 5000);
-            return;
-        }
-        setIsLoggedIn(true);
-        setUserEmail(email);
-        setShowAuthModal(false);
-    };
-
     const [leagues, setLeagues] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -71,13 +34,6 @@ export default function StandingsPage() {
 
     return (
         <div className="standings-page">
-            <Header
-                isLoggedIn={isLoggedIn}
-                userEmail={userEmail}
-                setIsLoggedIn={setIsLoggedIn}
-                onOpenAuth={handleOpenAuth}
-            />
-
             <div className="standings-app">
                 <header className="standings-header">
                     <div>
@@ -174,31 +130,6 @@ export default function StandingsPage() {
                     </section>
                 )}
             </div>
-
-            {showAuthModal && (
-                <AuthModal
-                    mode={authMode}
-                    onClose={handleCloseAuth}
-                    onSuccess={handleAuthSuccess}
-                />
-            )}
-            { /* Move styling into css */ }
-            {successMessage && (
-                <div style={{
-                    position: 'fixed',
-                    top: '20px',
-                    right: '20px',
-                    background: '#d4edda',
-                    color: '#155724',
-                    padding: '15px 20px',
-                    borderRadius: '5px',
-                    border: '1px solid #c3e6cb',
-                    maxWidth: '400px',
-                    zIndex: 1000
-                }}>
-                    {successMessage}
-                </div>
-            )}
         </div>
     );
 }

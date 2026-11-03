@@ -2,9 +2,20 @@
 
 import React, { useState } from 'react';
 import { validateAuth } from '../../lib/validation';
+import { useAuth } from './AuthContext';
 import './AuthModal.css';
 
-export default function AuthModal({ mode, onClose, onSuccess }) {
+// Rendered once in the root layout; opened from anywhere with openAuthModal(mode)
+export default function AuthModal() {
+    const { authModalMode, closeAuthModal } = useAuth();
+    if (!authModalMode) return null;
+
+    // The key resets the form when switching between login and signup
+    return <AuthForm key={authModalMode} mode={authModalMode} onClose={closeAuthModal} />;
+}
+
+function AuthForm({ mode, onClose }) {
+    const { login } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -59,16 +70,8 @@ export default function AuthModal({ mode, onClose, onSuccess }) {
                 return;
             }
 
-            // Success
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('email', data.email);
-            if (data.playerId) {
-                localStorage.setItem('playerId', String(data.playerId));
-            }
-            if (data.role) {
-                localStorage.setItem('role', data.role);
-            }
-            onSuccess(data.email, data.token);
+            // Success: stores the session and closes the modal
+            login(data);
         } catch (err) {
             setError('Hálózati hiba történt. Kérjük, próbáld újra.');
             setLoading(false);

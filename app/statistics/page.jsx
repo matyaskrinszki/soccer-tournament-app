@@ -2,39 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import Header from '../components/Header';
-import AuthModal from '../components/AuthModal';
 import './page.css';
 
 export default function StatisticsPage() {
-    const [isLoggedIn, setIsLoggedIn] = useState(() => {
-        if (typeof window === 'undefined') return false;
-        const token = localStorage.getItem('token');
-        const email = localStorage.getItem('email');
-        return Boolean(token && email);
-    });
-    const [userEmail, setUserEmail] = useState(() => {
-        if (typeof window === 'undefined') return '';
-        return localStorage.getItem('email') ?? '';
-    });
-    const [showAuthModal, setShowAuthModal] = useState(false);
-    const [authMode, setAuthMode] = useState('login');
-
-    const handleOpenAuth = (mode) => {
-        setAuthMode(mode);
-        setShowAuthModal(true);
-    };
-
-    const handleCloseAuth = () => {
-        setShowAuthModal(false);
-    };
-
-    const handleAuthSuccess = (email) => {
-        setIsLoggedIn(true);
-        setUserEmail(email);
-        setShowAuthModal(false);
-    };
-
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [stats, setStats] = useState(null);
@@ -62,13 +32,6 @@ export default function StatisticsPage() {
 
     return (
         <div className="statistics-page">
-            <Header
-                isLoggedIn={isLoggedIn}
-                userEmail={userEmail}
-                setIsLoggedIn={setIsLoggedIn}
-                onOpenAuth={handleOpenAuth}
-            />
-
             <main className="statistics-container">
                 <header className="statistics-header">
                     <div>
@@ -336,14 +299,6 @@ export default function StatisticsPage() {
                     </>
                 )}
             </main>
-
-            {showAuthModal && (
-                <AuthModal
-                    mode={authMode}
-                    onClose={handleCloseAuth}
-                    onSuccess={handleAuthSuccess}
-                />
-            )}
         </div>
     );
 }

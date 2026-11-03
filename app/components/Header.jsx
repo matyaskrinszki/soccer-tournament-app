@@ -4,47 +4,13 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { getAuthHeaders } from '../../lib/client-auth';
+import { useAuth } from './AuthContext';
 import './Header.css';
 
-export default function Header({ isLoggedIn, userEmail, setIsLoggedIn, onOpenAuth }) {
+export default function Header() {
     const router = useRouter();
-    const [playerId, setPlayerId] = useState(() => {
-        if (typeof window === 'undefined') return null;
-        const storedId = localStorage.getItem('playerId');
-        return storedId ? Number(storedId) : null;
-    });
+    const { isHydrated, isLoggedIn, userEmail, playerId, isAdmin, logout, openAuthModal } = useAuth();
     const [captainTeamId, setCaptainTeamId] = useState(null);
-    const [userRole, setUserRole] = useState(() => {
-        if (typeof window === 'undefined') return null;
-        return localStorage.getItem('role');
-    });
-    const [isHydrated, setIsHydrated] = useState(false);
-
-    const handleLogout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('email');
-        localStorage.removeItem('playerId');
-        localStorage.removeItem('role');
-        setPlayerId(null);
-        setUserRole(null);
-        setCaptainTeamId(null);
-        setIsLoggedIn(false);
-    };
-
-    useEffect(() => {
-        setIsHydrated(true);
-    }, []);
-
-    useEffect(() => {
-        if (!isLoggedIn || !userEmail) return;
-        const storedId = localStorage.getItem('playerId');
-        if (storedId) {
-            setPlayerId(Number(storedId));
-            return;
-        } else {
-            setPlayerId(null);
-        }
-    }, [isLoggedIn, userEmail]);
 
     useEffect(() => {
         if (!isLoggedIn || !playerId) {
@@ -78,16 +44,6 @@ export default function Header({ isLoggedIn, userEmail, setIsLoggedIn, onOpenAut
         };
     }, [isLoggedIn, playerId]);
 
-    useEffect(() => {
-        if (!isLoggedIn) {
-            setUserRole(null);
-            return;
-        }
-
-        const role = localStorage.getItem('role');
-        setUserRole(role);
-    }, [isLoggedIn]);
-
     const handleUserEmailClick = () => {
         router.push('/players/me');
     };
@@ -111,12 +67,12 @@ export default function Header({ isLoggedIn, userEmail, setIsLoggedIn, onOpenAut
                                 >
                                     {userEmail}
                                 </span>
-                                <span className="auth-link" onClick={handleLogout}>Kijelentkezés</span>
+                                <span className="auth-link" onClick={logout}>Kijelentkezés</span>
                             </>
                         ) : (
                             <>
-                                <span className="auth-link" onClick={() => onOpenAuth('login')}>Bejelentkezés</span>
-                                <span className="auth-link" onClick={() => onOpenAuth('signup')}>Regisztráció</span>
+                                <span className="auth-link" onClick={() => openAuthModal('login')}>Bejelentkezés</span>
+                                <span className="auth-link" onClick={() => openAuthModal('signup')}>Regisztráció</span>
                             </>
                         )}
                     </div>
@@ -128,18 +84,18 @@ export default function Header({ isLoggedIn, userEmail, setIsLoggedIn, onOpenAut
                         <h1>Futballbajnokság</h1>
                     </Link>
                     <nav className="nav">
-                        <a href="/tabella">Tabella</a>
+                        <Link href="/tabella">Tabella</Link>
                         <Link href="/schedule">Menetrend</Link>
                         <Link href="/players">Játékosok</Link>
                         <Link href="/teams">Csapatok</Link>
                         <Link href="/statistics">Statisztikák</Link>
-                        {isHydrated && isLoggedIn && (
+                        {isLoggedIn && (
                             <Link href="/matches/preferences">Preferenciák</Link>
                         )}
-                        {isHydrated && isLoggedIn && captainTeamId && (
+                        {isLoggedIn && captainTeamId && (
                             <Link href={`/teams/${captainTeamId}`}>Csapatom</Link>
                         )}
-                        {isHydrated && isLoggedIn && userRole === 'Admin' && (
+                        {isAdmin && (
                             <Link href="/admin">Szervezés</Link>
                         )}
                     </nav>

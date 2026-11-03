@@ -3,49 +3,20 @@
 import './page.css';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import Header from '../components/Header';
-import AuthModal from '../components/AuthModal';
 import { getAuthHeaders } from '../../lib/client-auth';
+import { useAuth } from '../components/AuthContext';
 
 export default function PlayersBrowsePage() {
     const [players, setPlayers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [captainTeam, setCaptainTeam] = useState(null);
-    const [currentPlayerId, setCurrentPlayerId] = useState(null);
+    const { isLoggedIn, playerId: currentPlayerId } = useAuth();
     const [isCaptain, setIsCaptain] = useState(false);
     const [recruitingId, setRecruitingId] = useState(null);
     const [recruitError, setRecruitError] = useState('');
     const [invitedPlayerIds, setInvitedPlayerIds] = useState([]);
     const [successRecruitingId, setSuccessRecruitingId] = useState(null);
-
-    const [isLoggedIn, setIsLoggedIn] = useState(() => {
-        if (typeof window === 'undefined') return false;
-        const token = localStorage.getItem('token');
-        const email = localStorage.getItem('email');
-        return Boolean(token && email);
-    });
-    const [userEmail, setUserEmail] = useState(() => {
-        if (typeof window === 'undefined') return '';
-        return localStorage.getItem('email') ?? '';
-    });
-    const [showAuthModal, setShowAuthModal] = useState(false);
-    const [authMode, setAuthMode] = useState('login');
-
-    const handleOpenAuth = (mode) => {
-        setAuthMode(mode);
-        setShowAuthModal(true);
-    };
-
-    const handleCloseAuth = () => {
-        setShowAuthModal(false);
-    };
-
-    const handleAuthSuccess = (email) => {
-        setIsLoggedIn(true);
-        setUserEmail(email);
-        setShowAuthModal(false);
-    };
 
     useEffect(() => {
         const fetchPlayers = async () => {
@@ -70,29 +41,11 @@ export default function PlayersBrowsePage() {
 
     useEffect(() => {
         const resolveCurrentPlayer = async () => {
-            if (!isLoggedIn) {
-                setCurrentPlayerId(null);
+            if (!isLoggedIn || !currentPlayerId) {
                 setIsCaptain(false);
                 setCaptainTeam(null);
                 return;
             }
-
-            let playerId = null;
-            if (typeof window !== 'undefined') {
-                const storedPlayerId = localStorage.getItem('playerId');
-                if (storedPlayerId) {
-                    playerId = Number(storedPlayerId);
-                }
-            }
-
-            if (!playerId) {
-                setCurrentPlayerId(null);
-                setIsCaptain(false);
-                setCaptainTeam(null);
-                return;
-            }
-
-            setCurrentPlayerId(playerId);
 
             /*
                 Check if section can be made simpler by using a single API call
@@ -108,7 +61,7 @@ export default function PlayersBrowsePage() {
                     throw new Error(data.error || 'Hiba történt a csapatok lekérdezésekor');
                 }
 
-                const team = (data.teams || []).find((t) => Number(t.captainPlayerId) === Number(playerId));
+                const team = (data.teams || []).find((t) => Number(t.captainPlayerId) === Number(currentPlayerId));
                 if (team) {
                     setIsCaptain(true);
                     setCaptainTeam({
@@ -127,7 +80,7 @@ export default function PlayersBrowsePage() {
         };
 
         resolveCurrentPlayer();
-    }, [isLoggedIn, userEmail]);
+    }, [isLoggedIn, currentPlayerId]);
 
     useEffect(() => {
         const fetchInvitedPlayers = async () => {
@@ -195,13 +148,6 @@ export default function PlayersBrowsePage() {
 
     return (
         <div className="players-page">
-            <Header
-                isLoggedIn={isLoggedIn}
-                userEmail={userEmail}
-                setIsLoggedIn={setIsLoggedIn}
-                onOpenAuth={handleOpenAuth}
-            />
-
             <main className="players-container">
                 <header className="players-header">
                     <div>
@@ -269,14 +215,6 @@ export default function PlayersBrowsePage() {
                     </section>
                 )}
             </main>
-
-            {showAuthModal && (
-                <AuthModal
-                    mode={authMode}
-                    onClose={handleCloseAuth}
-                    onSuccess={handleAuthSuccess}
-                />
-            )}
         </div>
     );
 }

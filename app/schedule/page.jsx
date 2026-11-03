@@ -4,8 +4,6 @@ import './schedule.css';
 import Link from 'next/link';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import Header from '../components/Header';
-import AuthModal from '../components/AuthModal';
 
 const STATUS_LABELS = {
     generated: 'Tervezet',
@@ -39,28 +37,6 @@ export default function SchedulePage() {
 function SchedulePageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const [isLoggedIn, setIsLoggedIn] = useState(() => {
-        if (typeof window === 'undefined') return false;
-        return Boolean(localStorage.getItem('token') && localStorage.getItem('email'));
-    });
-    const [userEmail, setUserEmail] = useState(() => {
-        if (typeof window === 'undefined') return '';
-        return localStorage.getItem('email') ?? '';
-    });
-    const [showAuthModal, setShowAuthModal] = useState(false);
-    const [authMode, setAuthMode] = useState('login');
-
-    const handleOpenAuth = (mode) => {
-        setAuthMode(mode);
-        setShowAuthModal(true);
-    };
-
-    const handleAuthSuccess = (email, _token, info) => {
-        setShowAuthModal(false);
-        if (info) return;
-        setIsLoggedIn(true);
-        setUserEmail(email);
-    };
 
     // The URL is the single source of truth for the selected season.
     const seasonId = searchParams.get('seasonId');
@@ -136,13 +112,6 @@ function SchedulePageContent() {
 
     return (
         <div className="schedule-page">
-            <Header
-                isLoggedIn={isLoggedIn}
-                userEmail={userEmail}
-                setIsLoggedIn={setIsLoggedIn}
-                onOpenAuth={handleOpenAuth}
-            />
-
             <div className="schedule-app">
                 <header className="schedule-header">
                     <p className="eyebrow">Menetrend</p>
@@ -245,14 +214,6 @@ function SchedulePageContent() {
                     </>
                 )}
             </div>
-
-            {showAuthModal && (
-                <AuthModal
-                    mode={authMode}
-                    onClose={() => setShowAuthModal(false)}
-                    onSuccess={handleAuthSuccess}
-                />
-            )}
         </div>
     );
 }

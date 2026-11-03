@@ -9,6 +9,7 @@ import {
     START_TIMES,
     buildRecurringKey,
 } from "../../../../lib/preference-rules";
+import { PUBLISHED_STATUSES } from "../../../../lib/publish-schedule";
 
 // A team plays at most this many matches in one calendar week (Monday-Sunday)
 const MAX_MATCHES_PER_TEAM_PER_WEEK = 1;
@@ -33,13 +34,20 @@ export async function POST(request) {
         const db = getDatabase();
 
         const season = db
-            .prepare(`SELECT id, name FROM seasons WHERE id = ?`)
+            .prepare(`SELECT id, name, status FROM seasons WHERE id = ?`)
             .get(seasonId);
 
         if (!season) {
             return NextResponse.json(
                 { error: "Szezon nem található" },
                 { status: 404 },
+            );
+        }
+
+        if (PUBLISHED_STATUSES.includes(season.status)) {
+            return jsonError(
+                400,
+                "A publikált szezon menetrendje nem generálható újra",
             );
         }
 

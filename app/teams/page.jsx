@@ -3,83 +3,25 @@
 import './page.css';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import Header from '../components/Header';
-import AuthModal from '../components/AuthModal';
 import { getAuthHeaders } from '../../lib/client-auth';
+import { useAuth } from '../components/AuthContext';
 
 export default function TeamsBrowsePage() {
     const [teams, setTeams] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    const [isLoggedIn, setIsLoggedIn] = useState(() => {
-        if (typeof window === 'undefined') return false;
-        const token = localStorage.getItem('token');
-        const email = localStorage.getItem('email');
-        return Boolean(token && email);
-    });
-    const [userEmail, setUserEmail] = useState(() => {
-        if (typeof window === 'undefined') return '';
-        return localStorage.getItem('email') ?? '';
-    });
-    const [playerId, setPlayerId] = useState(() => {
-        if (typeof window === 'undefined') return null;
-        const storedId = localStorage.getItem('playerId');
-        return storedId ? Number(storedId) : null;
-    });
+    const { isLoggedIn, playerId } = useAuth();
     const [playerTeam, setPlayerTeam] = useState(null);
     const [joiningTeamId, setJoiningTeamId] = useState(null);
     const [pendingRequestTeamIds, setPendingRequestTeamIds] = useState([]);
     const [successJoiningTeamId, setSuccessJoiningTeamId] = useState(null);
-    const [showAuthModal, setShowAuthModal] = useState(false);
-    const [authMode, setAuthMode] = useState('login');
-
-    const handleOpenAuth = (mode) => {
-        setAuthMode(mode);
-        setShowAuthModal(true);
-    };
-
-    const handleCloseAuth = () => {
-        setShowAuthModal(false);
-    };
-
-    const handleAuthSuccess = (email) => {
-        setIsLoggedIn(true);
-        setUserEmail(email);
-        setShowAuthModal(false);
-    };
 
     useEffect(() => {
-        if (!isLoggedIn || !userEmail) return;
-        const storedId = localStorage.getItem('playerId');
-        if (storedId) {
-            setPlayerId(Number(storedId));
+        if (!playerId || !isLoggedIn) {
+            setPlayerTeam(null);
             return;
         }
-
-        let cancelled = false;
-        const resolvePlayer = async () => {
-            try {
-                const res = await fetch(`/api/players?email=${encodeURIComponent(userEmail)}`);
-                if (!res.ok) return;
-                const data = await res.json();
-                if (data?.player?.id && !cancelled) {
-                    localStorage.setItem('playerId', String(data.player.id));
-                    setPlayerId(data.player.id);
-                }
-            } catch (err) {
-                // ignore
-            }
-        };
-        resolvePlayer();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [isLoggedIn, userEmail]);
-
-    useEffect(() => {
-        if (!playerId || !isLoggedIn) return;
 
         const fetchPlayerTeam = async () => {
             try {
@@ -194,13 +136,6 @@ export default function TeamsBrowsePage() {
 
     return (
         <div className="teams-page">
-            <Header
-                isLoggedIn={isLoggedIn}
-                userEmail={userEmail}
-                setIsLoggedIn={setIsLoggedIn}
-                onOpenAuth={handleOpenAuth}
-            />
-
             <main className="teams-container">
                 <header className="teams-header">
                     <div>
@@ -256,14 +191,6 @@ export default function TeamsBrowsePage() {
                     </section>
                 )}
             </main>
-
-            {showAuthModal && (
-                <AuthModal
-                    mode={authMode}
-                    onClose={handleCloseAuth}
-                    onSuccess={handleAuthSuccess}
-                />
-            )}
         </div>
     );
 }

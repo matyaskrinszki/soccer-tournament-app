@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getDatabase } from "../../../../lib/database";
 import { jsonError, serverError, isForeignKeyError } from "../../../../lib/api";
 import { requireAdmin, requireCaptainOrAdmin } from "../../../../lib/auth";
+import { PUBLISHED_STATUSES } from "../../../../lib/publish-schedule";
 
 export async function GET(request) {
     const user = await requireCaptainOrAdmin(request);
@@ -104,6 +105,16 @@ export async function DELETE(request) {
         // Season-wide cleanup of dates/time slots and dependent generated data
         let totalTimeSlots;
         try {
+            const season = db
+                .prepare("SELECT status FROM seasons WHERE id = ?")
+                .get(seasonId);
+            if (season && PUBLISHED_STATUSES.includes(season.status)) {
+                return jsonError(
+                    400,
+                    "A publikált szezon időpontjai nem törölhetők",
+                );
+            }
+
             totalTimeSlots =
                 db
                     .prepare(

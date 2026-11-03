@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import Header from '../../components/Header';
-import AuthModal from '../../components/AuthModal';
 import { getAuthHeaders } from '../../../lib/client-auth';
+import { useAuth } from '../../components/AuthContext';
 
 export default function TeamClient({ id }) {
     const [team, setTeam] = useState(null);
@@ -15,39 +14,11 @@ export default function TeamClient({ id }) {
     const [players, setPlayers] = useState([]);
     const [contentView, setContentView] = useState('matches'); // 'matches' or 'players'
     const [matchView, setMatchView] = useState('upcoming'); // 'upcoming' or 'previous'
-    const [currentPlayerId, setCurrentPlayerId] = useState(null);
+    const { playerId: currentPlayerId } = useAuth();
     const [teamApplications, setTeamApplications] = useState([]);
     const [isTeamCaptain, setIsTeamCaptain] = useState(false);
     const [processingApplicationId, setProcessingApplicationId] = useState(null);
     const [kickingPlayerId, setKickingPlayerId] = useState(null);
-
-    const [isLoggedIn, setIsLoggedIn] = useState(() => {
-        if (typeof window === 'undefined') return false;
-        const token = localStorage.getItem('token');
-        const email = localStorage.getItem('email');
-        return Boolean(token && email);
-    });
-    const [userEmail, setUserEmail] = useState(() => {
-        if (typeof window === 'undefined') return '';
-        return localStorage.getItem('email') ?? '';
-    });
-    const [showAuthModal, setShowAuthModal] = useState(false);
-    const [authMode, setAuthMode] = useState('login');
-
-    const handleOpenAuth = (mode) => {
-        setAuthMode(mode);
-        setShowAuthModal(true);
-    };
-
-    const handleCloseAuth = () => {
-        setShowAuthModal(false);
-    };
-
-    const handleAuthSuccess = (email, token) => {
-        setIsLoggedIn(true);
-        setUserEmail(email);
-        setShowAuthModal(false);
-    };
 
     useEffect(() => {
         if (!id) return; // wait until id prop is available
@@ -89,29 +60,6 @@ export default function TeamClient({ id }) {
         fetchTeam();
         fetchPlayers();
     }, [id]);
-
-    useEffect(() => {
-        if (!isLoggedIn || !userEmail) {
-            setCurrentPlayerId(null);
-            return;
-        }
-
-        let cancelled = false;
-        const resolvePlayerId = async () => {
-            const storedId = localStorage.getItem('playerId');
-            if (storedId) {
-                if (!cancelled) setCurrentPlayerId(Number(storedId));
-                return;
-            } else {
-                setCurrentPlayerId(null);
-            }
-        };
-
-        resolvePlayerId();
-        return () => {
-            cancelled = true;
-        };
-    }, [isLoggedIn, userEmail]);
 
     useEffect(() => {
         if (!team || !currentPlayerId) {
@@ -209,13 +157,6 @@ export default function TeamClient({ id }) {
 
     return (
         <div className="team-page">
-            <Header
-                isLoggedIn={isLoggedIn}
-                userEmail={userEmail}
-                setIsLoggedIn={setIsLoggedIn}
-                onOpenAuth={handleOpenAuth}
-            />
-
             <main className="team-container">
                 <div className="team-breadcrumb">
                     <Link href="/tabella">Vissza a táblához</Link>
@@ -440,14 +381,6 @@ export default function TeamClient({ id }) {
                     </>
                 )}
             </main>
-
-            {showAuthModal && (
-                <AuthModal
-                    mode={authMode}
-                    onClose={handleCloseAuth}
-                    onSuccess={handleAuthSuccess}
-                />
-            )}
         </div>
     );
 }

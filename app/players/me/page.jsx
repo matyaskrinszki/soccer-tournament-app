@@ -3,29 +3,11 @@
 import './page.css';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import Header from '../../components/Header';
-import AuthModal from '../../components/AuthModal';
 import { getAuthHeaders } from '../../../lib/client-auth';
+import { useAuth } from '../../components/AuthContext';
 
 export default function PlayerMePage() {
-    const [isLoggedIn, setIsLoggedIn] = useState(() => {
-        if (typeof window === 'undefined') return false;
-        const token = localStorage.getItem('token');
-        const email = localStorage.getItem('email');
-        return Boolean(token && email);
-    });
-    const [userEmail, setUserEmail] = useState(() => {
-        if (typeof window === 'undefined') return '';
-        return localStorage.getItem('email') ?? '';
-    });
-    const [playerId, setPlayerId] = useState(() => {
-        if (typeof window === 'undefined') return null;
-        const storedId = localStorage.getItem('playerId');
-        return storedId ? Number(storedId) : null;
-    });
-
-    const [showAuthModal, setShowAuthModal] = useState(false);
-    const [authMode, setAuthMode] = useState('login');
+    const { isHydrated, isLoggedIn, playerId, updateEmail, openAuthModal } = useAuth();
 
     const [player, setPlayer] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -50,30 +32,6 @@ export default function PlayerMePage() {
     const [captainTeamId, setCaptainTeamId] = useState(null);
     const [requestsLoading, setRequestsLoading] = useState(false);
     const [processingRequestId, setProcessingRequestId] = useState(null);
-
-    const handleOpenAuth = (mode) => {
-        setAuthMode(mode);
-        setShowAuthModal(true);
-    };
-
-    const handleCloseAuth = () => {
-        setShowAuthModal(false);
-    };
-
-    const handleAuthSuccess = (email) => {
-        setIsLoggedIn(true);
-        setUserEmail(email);
-        setShowAuthModal(false);
-    };
-
-    useEffect(() => {
-        if (!isLoggedIn || !userEmail) return;
-        const storedId = localStorage.getItem('playerId');
-        if (storedId) {
-            setPlayerId(Number(storedId));
-            return;
-        }
-    }, [isLoggedIn, userEmail]);
 
     useEffect(() => {
         if (!playerId || !isLoggedIn) return;
@@ -172,8 +130,7 @@ export default function PlayerMePage() {
             }
 
             if (data?.player?.email) {
-                localStorage.setItem('email', data.player.email);
-                setUserEmail(data.player.email);
+                updateEmail(data.player.email);
             }
 
             setPasswordValue('');
@@ -302,25 +259,24 @@ export default function PlayerMePage() {
 
     return (
         <div className="player-me-page">
-            <Header
-                isLoggedIn={isLoggedIn}
-                userEmail={userEmail}
-                setIsLoggedIn={setIsLoggedIn}
-                onOpenAuth={handleOpenAuth}
-            />
-
             <main className="player-me-container">
                 <div className="player-breadcrumb">
                     <Link href="/players">Vissza a játékosokhoz</Link>
                 </div>
 
-                {!isLoggedIn && (
+                {!isHydrated && (
+                    <div className="player-card">
+                        <p>Betöltés...</p>
+                    </div>
+                )}
+
+                {isHydrated && !isLoggedIn && (
                     <section className="player-card">
                         <h1>Bejelentkezés szükséges</h1>
                         <p className="subhead">A saját profilod megtekintéséhez jelentkezz be.</p>
                         <div className="button-row">
-                            <button onClick={() => handleOpenAuth('login')}>Bejelentkezés</button>
-                            <button onClick={() => handleOpenAuth('signup')}>Regisztráció</button>
+                            <button onClick={() => openAuthModal('login')}>Bejelentkezés</button>
+                            <button onClick={() => openAuthModal('signup')}>Regisztráció</button>
                         </div>
                     </section>
                 )}
@@ -529,14 +485,6 @@ export default function PlayerMePage() {
                     </>
                 )}
             </main>
-
-            {showAuthModal && (
-                <AuthModal
-                    mode={authMode}
-                    onClose={handleCloseAuth}
-                    onSuccess={handleAuthSuccess}
-                />
-            )}
         </div>
     );
 }
