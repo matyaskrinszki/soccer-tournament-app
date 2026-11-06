@@ -1,49 +1,70 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, useSyncExternalStore } from 'react';
 
 // The logged-in user is kept in localStorage (token, email, playerId, role) so it
-// survives reloads. This context reads it once after hydration and is the only
-// place that writes it, so every page and the Header see the same state.
+// survives reloads. This context is the only place that writes it, so every page
+// and the Header see the same state. localStorage is read through
+// useSyncExternalStore, which re-renders whenever the stored values change.
 
 const STORAGE_KEYS = ['token', 'email', 'playerId', 'role'];
 
 const AuthContext = createContext(null);
 
-function readStoredUser() {
-    const token = localStorage.getItem('token');
-    const email = localStorage.getItem('email');
+// The "storage" event only fires in *other* tabs, so changes made in this tab
+// notify the subscribers by hand
+const listeners = new Set();
+
+function notifyAuthChange() {
+    listeners.forEach((listener) => listener());
+}
+
+function subscribe(listener) {
+    listeners.add(listener);
+    // Keep tabs in sync when the user logs in or out in another one
+    const handleStorage = (event) => {
+        if (event.key === null || STORAGE_KEYS.includes(event.key)) {
+            listener();
+        }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => {
+        listeners.delete(listener);
+        window.removeEventListener('storage', handleStorage);
+    };
+}
+
+// The snapshot must compare equal while nothing changed, so it is the stored
+// values joined into one string; it is parsed into a user object below
+function getStoredSnapshot() {
+    return JSON.stringify(STORAGE_KEYS.map((key) => localStorage.getItem(key)));
+}
+
+// localStorage doesn't exist during SSR
+function getServerSnapshot() {
+    return null;
+}
+
+function parseStoredUser(snapshot) {
+    if (snapshot === null) return null;
+
+    const [token, email, storedId, role] = JSON.parse(snapshot);
     if (!token || !email) return null;
 
-    const storedId = localStorage.getItem('playerId');
     return {
         email,
         playerId: storedId ? Number(storedId) : null,
-        role: localStorage.getItem('role'),
+        role,
     };
 }
 
 export function AuthProvider({ children }) {
-    const [user, setUser] = useState(null);
-    // localStorage doesn't exist during SSR: until the first client render
-    // finishes nobody knows yet whether the user is logged in
-    const [isHydrated, setIsHydrated] = useState(false);
+    const snapshot = useSyncExternalStore(subscribe, getStoredSnapshot, getServerSnapshot);
+    const user = useMemo(() => parseStoredUser(snapshot), [snapshot]);
+    // Until the first client render nobody knows yet whether the user is logged in
+    const isHydrated = snapshot !== null;
     // 'login' | 'signup' while the AuthModal is open, null otherwise
     const [authModalMode, setAuthModalMode] = useState(null);
-
-    useEffect(() => {
-        setUser(readStoredUser());
-        setIsHydrated(true);
-
-        // Keep tabs in sync when the user logs in or out in another one
-        const handleStorage = (event) => {
-            if (event.key === null || STORAGE_KEYS.includes(event.key)) {
-                setUser(readStoredUser());
-            }
-        };
-        window.addEventListener('storage', handleStorage);
-        return () => window.removeEventListener('storage', handleStorage);
-    }, []);
 
     /**
      * Store the response of /api/auth/login or /api/auth/signup
@@ -62,19 +83,19 @@ export function AuthProvider({ children }) {
         } else {
             localStorage.removeItem('role');
         }
-        setUser(readStoredUser());
+        notifyAuthChange();
         setAuthModalMode(null);
     }, []);
 
     const logout = useCallback(() => {
         STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
-        setUser(null);
+        notifyAuthChange();
     }, []);
 
     // After the profile page changes the email address
     const updateEmail = useCallback((email) => {
         localStorage.setItem('email', email);
-        setUser((prev) => (prev ? { ...prev, email } : prev));
+        notifyAuthChange();
     }, []);
 
     const openAuthModal = useCallback((mode) => setAuthModalMode(mode), []);

@@ -43,23 +43,27 @@ export default function AdminPage() {
         [],
     );
 
-    const reloadSeasons = useCallback(async () => {
-        try {
-            const data = await adminFetch('/api/admin/seasons', {
+    // State is only set in the promise callbacks, never synchronously, so the
+    // effect below can call this on mount
+    const reloadSeasons = useCallback(
+        () =>
+            adminFetch('/api/admin/seasons', {
                 errorMessage: 'Hiba a szezonok lekérdezésekor',
-            });
-            const fetchedSeasons = data.seasons || [];
-            setSeasons(fetchedSeasons);
-            // Keep the selection if the season still exists, otherwise pick the newest
-            setSelectedSeasonId((previousId) =>
-                fetchedSeasons.some((season) => season.id === previousId)
-                    ? previousId
-                    : fetchedSeasons[0]?.id ?? null,
-            );
-        } catch (err) {
-            notify.error(err.message);
-        }
-    }, [notify]);
+            }).then(
+                (data) => {
+                    const fetchedSeasons = data.seasons || [];
+                    setSeasons(fetchedSeasons);
+                    // Keep the selection if the season still exists, otherwise pick the newest
+                    setSelectedSeasonId((previousId) =>
+                        fetchedSeasons.some((season) => season.id === previousId)
+                            ? previousId
+                            : fetchedSeasons[0]?.id ?? null,
+                    );
+                },
+                (err) => notify.error(err.message),
+            ),
+        [notify],
+    );
 
     // Merge changed fields into one season, e.g. after a status change or publishing
     const updateSeason = useCallback((seasonId, changes) => {

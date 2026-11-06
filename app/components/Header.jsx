@@ -10,31 +10,33 @@ import './Header.css';
 export default function Header() {
     const router = useRouter();
     const { isHydrated, isLoggedIn, userEmail, playerId, isAdmin, logout, openAuthModal } = useAuth();
-    const [captainTeamId, setCaptainTeamId] = useState(null);
+    // Remembers which player the team was fetched for, so after logout or a user
+    // switch the old value is ignored without having to reset it
+    const [captainTeam, setCaptainTeam] = useState({ playerId: null, teamId: null });
+    const captainTeamId =
+        isLoggedIn && playerId && captainTeam.playerId === playerId ? captainTeam.teamId : null;
 
     useEffect(() => {
         if (!isLoggedIn || !playerId) {
-            setCaptainTeamId(null);
             return;
         }
 
         let cancelled = false;
         const fetchCaptainTeam = async () => {
+            let teamId = null;
             try {
                 const res = await fetch(`/api/player-requests?playerId=${playerId}`, {
                     headers: getAuthHeaders(),
                 });
-                if (!res.ok) {
-                    if (!cancelled) setCaptainTeamId(null);
-                    return;
-                }
-
-                const data = await res.json();
-                if (!cancelled) {
-                    setCaptainTeamId(data?.captainTeamId ?? null);
+                if (res.ok) {
+                    const data = await res.json();
+                    teamId = data?.captainTeamId ?? null;
                 }
             } catch (err) {
-                if (!cancelled) setCaptainTeamId(null);
+                // No "Csapatom" link if the request fails
+            }
+            if (!cancelled) {
+                setCaptainTeam({ playerId, teamId });
             }
         };
 
