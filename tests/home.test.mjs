@@ -6,6 +6,8 @@ import assert from "node:assert/strict";
 import Database from "better-sqlite3";
 import * as m001 from "../lib/migrations/001_initial_schema.js";
 import * as m003 from "../lib/migrations/003_link_matches_to_schedule.js";
+import * as m004 from "../lib/migrations/004_sample_season.js";
+import * as m005 from "../lib/migrations/005_drop_team_stat_columns.js";
 import { getHomeData, toLocalDateTimeKey } from "../lib/home.js";
 
 const NOW = new Date(2026, 10, 3, 12, 0, 0); // 2026-11-03 12:00 local
@@ -14,28 +16,37 @@ function createDatabase() {
     const db = new Database(":memory:");
     m001.up(db);
     m003.up(db);
+    m004.up(db);
+    m005.up(db);
     db.exec(`
         INSERT INTO leagues (id, name, country) VALUES
             ('a-league', 'A League', 'HU'),
             ('b-league', 'B League', 'HU'),
             ('empty-league', 'Empty League', 'HU');
-        INSERT INTO teams (id, name, league_id, matches, wins, draws, losses, points) VALUES
-            (1, 'Alpha', 'a-league', 3, 3, 0, 0, 9),
-            (2, 'Bravo', 'a-league', 3, 1, 1, 1, 4),
-            (3, 'Charlie', 'a-league', 3, 1, 1, 1, 4),
-            (4, 'Delta', 'a-league', 3, 0, 0, 3, 0),
-            (5, 'Echo', 'b-league', 0, 0, 0, 0, 0);
+        INSERT INTO teams (id, name, league_id) VALUES
+            (1, 'Alpha', 'a-league'),
+            (2, 'Bravo', 'a-league'),
+            (3, 'Charlie', 'a-league'),
+            (4, 'Delta', 'a-league'),
+            (5, 'Echo', 'b-league'),
+            (6, 'Foxtrot', 'b-league');
+        INSERT INTO seasons (id, name, status, start_date, end_date) VALUES
+            (1, '2026 ősz', 'active', '2026-09-01', '2026-12-15'),
+            (2, '2025 ősz', 'completed', '2025-09-01', '2025-12-15');
     `);
     return db;
 }
 
 let nextId = 1;
-function addMatch(db, { home = 1, away = 2, date, status, score = [null, null] }) {
+function addMatch(
+    db,
+    { home = 1, away = 2, date, status, score = [null, null], seasonId = null, league = "a-league" },
+) {
     const id = nextId++;
     db.prepare(
-        `INSERT INTO matches (id, league_id, home_team_id, away_team_id, home_score, away_score, match_date, status)
-         VALUES (?, 'a-league', ?, ?, ?, ?, ?, ?)`,
-    ).run(id, home, away, score[0], score[1], date, status);
+        `INSERT INTO matches (id, league_id, season_id, home_team_id, away_team_id, home_score, away_score, match_date, status)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(id, league, seasonId, home, away, score[0], score[1], date, status);
     return id;
 }
 
@@ -139,24 +150,50 @@ describe("getHomeData", () => {
     });
 
     describe("standings summary", () => {
-        it("gives the top teams of each league with teams, by points then name", () => {
-            const { standings } = getHomeData(db, { now: NOW, topTeams: 3 });
+        const finished = (home, away, score, seasonId = 1, league = "a-league") =>
+            addMatch(db, {
+                home,
+                away,
+                score,
+                seasonId,
+                league,
+                date: "2026-10-01T18:00:00",
+                status: "finished",
+            });
 
+        it("gives the top teams of each league in the default season", () => {
+            finished(1, 2, [3, 0]);
+            finished(3, 4, [1, 1]);
+            finished(1, 3, [2, 1]);
+            finished(5, 6, [0, 2], 1, "b-league");
+            // The completed season must not leak into the active one
+            finished(4, 1, [9, 0], 2);
+
+            const { standingsSeason, standings } = getHomeData(db, { now: NOW, topTeams: 3 });
+
+            assert.equal(standingsSeason.name, "2026 ősz");
             assert.deepEqual(
                 standings.map((league) => [league.id, league.teamCount]),
                 [
                     ["a-league", 4],
-                    ["b-league", 1],
+                    ["b-league", 2],
                 ],
             );
             assert.deepEqual(
-                standings[0].teams.map((team) => [team.name, team.points]),
+                standings[0].teams.map((team) => [team.position, team.name, team.points]),
                 [
-                    ["Alpha", 9],
-                    ["Bravo", 4],
-                    ["Charlie", 4],
+                    [1, "Alpha", 6],
+                    [2, "Delta", 1],
+                    [3, "Charlie", 1],
                 ],
             );
+        });
+
+        it("has no tables while no season has matches", () => {
+            const { standingsSeason, standings } = getHomeData(db, { now: NOW });
+
+            assert.equal(standingsSeason, null);
+            assert.deepEqual(standings, []);
         });
     });
 });

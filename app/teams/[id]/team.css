@@ -84,8 +84,16 @@
     font-size: 1.6rem;
 }
 
+.standing-season {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 1rem 0 0;
+    color: #3E5879;
+}
+
 .team-stats-grid {
-    margin-top: 1.5rem;
+    margin-top: 1rem;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 1rem;

@@ -56,7 +56,7 @@ export async function POST(request) {
             db.transaction(() => {
                 const result = db
                     .prepare(
-                        "INSERT INTO teams (name, league_id, captain_player_id, matches, wins, draws, losses, points) VALUES (?, ?, ?, 0, 0, 0, 0, 0)",
+                        "INSERT INTO teams (name, league_id, captain_player_id) VALUES (?, ?, ?)",
                     )
                     .run(name.trim(), leagueId, playerId);
                 newTeamId = Number(result.lastInsertRowid);

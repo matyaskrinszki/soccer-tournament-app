@@ -1,36 +1,29 @@
 import { NextResponse } from "next/server";
 import { getDatabase } from "../../../lib/database";
-import { jsonError } from "../../../lib/api";
+import { serverError } from "../../../lib/api";
 
+/**
+ * Every league with its current teams, e.g. for "create team" and admin dropdowns.
+ * League tables are served by /api/standings.
+ * GET /api/leagues -> { leagues: [{ id, name, country, teams: [{ id, name }] }] }
+ */
 export async function GET() {
-    let db;
-    let leagues;
     try {
-        db = getDatabase();
-        leagues = db
+        const db = getDatabase();
+        const leagues = db
             .prepare("SELECT id, name, country FROM leagues ORDER BY name")
             .all();
-    } catch (err) {
-        console.error(err);
-        return jsonError(500, "Hiba történt a bajnokságok betöltésekor");
-    }
-
-    try {
-        // For each league, get its teams
         const teamsByLeague = db.prepare(
-            "SELECT id, name, matches, wins, draws, losses, points FROM teams WHERE league_id = ? ORDER BY points DESC, name ASC",
+            "SELECT id, name FROM teams WHERE league_id = ? ORDER BY name COLLATE NOCASE",
         );
 
-        const leaguesWithTeams = leagues.map((league) => ({
-            id: league.id,
-            name: league.name,
-            country: league.country,
-            teams: teamsByLeague.all(league.id),
-        }));
-
-        return NextResponse.json({ leagues: leaguesWithTeams });
+        return NextResponse.json({
+            leagues: leagues.map((league) => ({
+                ...league,
+                teams: teamsByLeague.all(league.id),
+            })),
+        });
     } catch (err) {
-        console.error(err);
-        return jsonError(500, "Hiba történt a csapatok betöltésekor");
+        return serverError(err);
     }
 }

@@ -3,9 +3,19 @@
 import './page.css';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import SeasonPicker from '../components/SeasonPicker';
+
+// "+3", "0", "-2"
+function formatGoalDifference(value) {
+    return value > 0 ? `+${value}` : String(value);
+}
 
 export default function StandingsPage() {
     const [leagues, setLeagues] = useState([]);
+    const [season, setSeason] = useState(null);
+    const [seasons, setSeasons] = useState([]);
+    // null until the user picks one: the API then returns the default season
+    const [requestedSeasonId, setRequestedSeasonId] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -13,24 +23,36 @@ export default function StandingsPage() {
     const [showLeagueDropdown, setShowLeagueDropdown] = useState(false);
 
     useEffect(() => {
-        const fetchLeagues = async () => {
+        let cancelled = false;
+        const fetchStandings = async () => {
             try {
                 setLoading(true);
-                const response = await fetch('/api/leagues');
-                if (!response.ok) {
-                    throw new Error('Hiba történt a bajnokságok betöltésekor');
-                }
+                setError('');
+                const query = requestedSeasonId ? `?seasonId=${requestedSeasonId}` : '';
+                const response = await fetch(`/api/standings${query}`);
                 const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || 'Hiba történt a tabella betöltésekor');
+                }
+                if (cancelled) return;
                 setLeagues(data.leagues);
+                setSeason(data.season);
+                setSeasons(data.seasons);
             } catch (err) {
-                setError(err.message);
+                if (!cancelled) setError(err.message);
             } finally {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             }
         };
 
-        fetchLeagues();
-    }, []);
+        fetchStandings();
+        return () => {
+            cancelled = true;
+        };
+    }, [requestedSeasonId]);
+
+    // A league picked in another season may not exist in this one
+    const selectedLeague = leagues.find((league) => league.id === selectedLeagueId) ?? null;
 
     return (
         <div className="standings-page">
@@ -43,6 +65,8 @@ export default function StandingsPage() {
                     </div>
                 </header>
 
+                <SeasonPicker seasons={seasons} season={season} onChange={setRequestedSeasonId} />
+
                 {loading ? (
                     <div className="loading-message">
                         <p>Bajnokságok betöltése...</p>
@@ -51,6 +75,10 @@ export default function StandingsPage() {
                     <div className="error-message">
                         <p>{error}</p>
                     </div>
+                ) : leagues.length === 0 ? (
+                    <div className="loading-message">
+                        <p>Még nincs publikált menetrend, ezért tabella sincs.</p>
+                    </div>
                 ) : (
                     <div className="league-selector-container">
                         <div className="league-selector">
@@ -58,7 +86,7 @@ export default function StandingsPage() {
                                 className="league-selector-btn"
                                 onClick={() => setShowLeagueDropdown(!showLeagueDropdown)}
                             >
-                                {selectedLeagueId ? leagues.find(l => l.id === selectedLeagueId)?.name : 'Válassz ligát'}
+                                {selectedLeague ? selectedLeague.name : 'Válassz ligát'}
                                 <span className="dropdown-arrow">{showLeagueDropdown ? '▲' : '▼'}</span>
                             </button>
 
@@ -83,10 +111,10 @@ export default function StandingsPage() {
                     </div>
                 )}
 
-                {selectedLeagueId && leagues.find(l => l.id === selectedLeagueId) && (
+                {!loading && selectedLeague && (
                     <section className="league-standings">
                         {(() => {
-                            const league = leagues.find(l => l.id === selectedLeagueId);
+                            const league = selectedLeague;
                             return (
                                 <>
                                     <div className="league-header">
@@ -103,22 +131,28 @@ export default function StandingsPage() {
                                                 <th title="Győzelmek">Gy</th>
                                                 <th title="Döntetlenek">D</th>
                                                 <th title="Vereségek">V</th>
+                                                <th title="Lőtt gólok">LG</th>
+                                                <th title="Kapott gólok">KG</th>
+                                                <th title="Gólkülönbség">GK</th>
                                                 <th>Pont</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {league.teams.map((team, idx) => (
+                                            {league.teams.map((team) => (
                                                 <tr key={team.id}>
                                                     <td>
-                                                        <span className="position">{idx + 1}</span>
+                                                        <span className="position">{team.position}</span>
                                                         <Link href={`/teams/${team.id}`} className="team-name">
                                                             {team.name}
                                                         </Link>
                                                     </td>
-                                                    <td>{team.matches}</td>
+                                                    <td>{team.played}</td>
                                                     <td>{team.wins}</td>
                                                     <td>{team.draws}</td>
                                                     <td>{team.losses}</td>
+                                                    <td>{team.goalsFor}</td>
+                                                    <td>{team.goalsAgainst}</td>
+                                                    <td>{formatGoalDifference(team.goalDifference)}</td>
                                                     <td className="points">{team.points}</td>
                                                 </tr>
                                             ))}

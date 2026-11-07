@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { SampleBadge, seasonLabel } from './components/SeasonPicker';
 import './page.css';
 
 function formatDate(matchDate) {
@@ -101,8 +102,14 @@ export default function Home() {
 
                         <section className="standings-section" id="standings">
                             <h2>Tabella élmezőnye</h2>
+                            {home.standingsSeason && (
+                                <p className="standings-season">
+                                    {seasonLabel(home.standingsSeason)}
+                                    {home.standingsSeason.isSample && <SampleBadge />}
+                                </p>
+                            )}
                             {home.standings.length === 0 ? (
-                                <p className="empty">Még nincsenek csapatok.</p>
+                                <p className="empty">Még nincs publikált menetrend.</p>
                             ) : (
                                 <div className="standings-grid">
                                     {home.standings.map((league) => (
@@ -118,13 +125,13 @@ export default function Home() {
                                                     </tr>
                                                 </thead>
                                                 <tbody>
-                                                    {league.teams.map((team, index) => (
+                                                    {league.teams.map((team) => (
                                                         <tr key={team.id}>
-                                                            <td>{index + 1}</td>
+                                                            <td>{team.position}</td>
                                                             <td>
                                                                 <Link href={`/teams/${team.id}`}>{team.name}</Link>
                                                             </td>
-                                                            <td>{team.matches}</td>
+                                                            <td>{team.played}</td>
                                                             <td><strong>{team.points}</strong></td>
                                                         </tr>
                                                     ))}

@@ -4,9 +4,13 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getAuthHeaders } from '../../../lib/client-auth';
 import { useAuth } from '../../components/AuthContext';
+import { SampleBadge } from '../../components/SeasonPicker';
 
 export default function TeamClient({ id }) {
     const [team, setTeam] = useState(null);
+    // The team's table row and the season it is from; null if it has no matches yet
+    const [standing, setStanding] = useState(null);
+    const [standingSeason, setStandingSeason] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [upcomingMatches, setUpcomingMatches] = useState([]);
@@ -35,6 +39,8 @@ export default function TeamClient({ id }) {
                 }
 
                 setTeam(data.team);
+                setStanding(data.standing ?? null);
+                setStandingSeason(data.season ?? null);
                 setUpcomingMatches(data.upcomingMatches ?? []);
                 setPreviousMatches(data.previousMatches ?? []);
             } catch (err) {
@@ -190,26 +196,41 @@ export default function TeamClient({ id }) {
                                 </div>
                                 <div className="points-pill">
                                     <span>Pont</span>
-                                    <strong>{team.points}</strong>
+                                    <strong>{standing?.points ?? 0}</strong>
                                 </div>
                             </div>
+
+                            <p className="standing-season">
+                                {standing && standingSeason ? (
+                                    <>
+                                        {standingSeason.name} • {standing.position}. hely
+                                        {standingSeason.isSample && <SampleBadge />}
+                                    </>
+                                ) : (
+                                    'Még nem játszott mérkőzést.'
+                                )}
+                            </p>
 
                             <div className="team-stats-grid">
                                 <div className="stat-box">
                                     <p className="label">Mérkőzések</p>
-                                    <p className="value">{team.matches}</p>
+                                    <p className="value">{standing?.played ?? 0}</p>
                                 </div>
                                 <div className="stat-box">
                                     <p className="label">Győzelem</p>
-                                    <p className="value">{team.wins}</p>
+                                    <p className="value">{standing?.wins ?? 0}</p>
                                 </div>
                                 <div className="stat-box">
                                     <p className="label">Döntetlen</p>
-                                    <p className="value">{team.draws}</p>
+                                    <p className="value">{standing?.draws ?? 0}</p>
                                 </div>
                                 <div className="stat-box">
                                     <p className="label">Vereség</p>
-                                    <p className="value">{team.losses}</p>
+                                    <p className="value">{standing?.losses ?? 0}</p>
+                                </div>
+                                <div className="stat-box">
+                                    <p className="label">Gólarány</p>
+                                    <p className="value">{standing?.goalsFor ?? 0}:{standing?.goalsAgainst ?? 0}</p>
                                 </div>
                             </div>
                         </section>

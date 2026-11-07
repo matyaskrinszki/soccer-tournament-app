@@ -2,33 +2,41 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import SeasonPicker from '../components/SeasonPicker';
 import './page.css';
 
 export default function StatisticsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [stats, setStats] = useState(null);
+    // null until the user picks one: the API then returns the default season
+    const [requestedSeasonId, setRequestedSeasonId] = useState(null);
 
     useEffect(() => {
+        let cancelled = false;
         const fetchStats = async () => {
             try {
                 setLoading(true);
                 setError('');
-                const res = await fetch('/api/statistics');
+                const query = requestedSeasonId ? `?seasonId=${requestedSeasonId}` : '';
+                const res = await fetch(`/api/statistics${query}`);
                 const data = await res.json();
                 if (!res.ok) {
                     throw new Error(data.error || 'Nem sikerült a statisztika betöltése');
                 }
-                setStats(data);
+                if (!cancelled) setStats(data);
             } catch (err) {
-                setError(err.message);
+                if (!cancelled) setError(err.message);
             } finally {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             }
         };
 
         fetchStats();
-    }, []);
+        return () => {
+            cancelled = true;
+        };
+    }, [requestedSeasonId]);
 
     return (
         <div className="statistics-page">
@@ -40,6 +48,20 @@ export default function StatisticsPage() {
                         <p className="subhead">Részletes statisztikák és elemzések az összes ligáról és játékosról.</p>
                     </div>
                 </header>
+
+                {stats && (
+                    <SeasonPicker
+                        seasons={stats.seasons}
+                        season={stats.season}
+                        onChange={setRequestedSeasonId}
+                    />
+                )}
+
+                {stats && !stats.season && !loading && !error && (
+                    <div className="stats-card">
+                        <p>Még nincs publikált menetrend, ezért statisztika sincs.</p>
+                    </div>
+                )}
 
                 {loading && (
                     <div className="stats-card">
@@ -87,7 +109,7 @@ export default function StatisticsPage() {
                         {/* Top Scorers */}
                         {stats.topScorers && stats.topScorers.length > 0 && (
                             <section className="stats-card">
-                                <h2>Top 10 Góllövő - Globális</h2>
+                                <h2>Top 10 Góllövő</h2>
                                 <div className="table-wrapper">
                                     <table className="stats-table">
                                         <thead>
@@ -215,7 +237,7 @@ export default function StatisticsPage() {
                                                             {team.name}
                                                         </Link>
                                                     </td>
-                                                    <td>{team.matches}</td>
+                                                    <td>{team.played}</td>
                                                     <td>{team.wins}</td>
                                                     <td>{team.draws}</td>
                                                     <td>{team.losses}</td>
@@ -255,9 +277,9 @@ export default function StatisticsPage() {
                                                         </Link>
                                                     </td>
                                                     <td className="league-cell">{team.leagueName}</td>
-                                                    <td>{team.matches}</td>
-                                                    <td>{team.concededGoals || 0}</td>
-                                                    <td>{team.avgConcededPerMatch || 0}</td>
+                                                    <td>{team.played}</td>
+                                                    <td>{team.goalsAgainst}</td>
+                                                    <td>{team.avgConcededPerMatch}</td>
                                                 </tr>
                                             ))}
                                         </tbody>

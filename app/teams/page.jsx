@@ -8,6 +8,8 @@ import { useAuth } from '../components/AuthContext';
 
 export default function TeamsBrowsePage() {
     const [teams, setTeams] = useState([]);
+    // Season the stats line belongs to (the public pages' default season)
+    const [statsSeason, setStatsSeason] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -48,6 +50,7 @@ export default function TeamsBrowsePage() {
                     throw new Error(data.error || 'Hiba történt a csapatok betöltésekor');
                 }
                 setTeams(data.teams || []);
+                setStatsSeason(data.season ?? null);
             } catch (err) {
                 setError(err.message);
             } finally {
@@ -173,9 +176,11 @@ export default function TeamsBrowsePage() {
                                     {team.captainName && (
                                         <p className="team-meta">Kapitány: {team.captainName}</p>
                                     )}
-                                    <p className="team-stats">
-                                        {team.matches} M • {team.wins} Gy • {team.draws} D • {team.losses} V • {team.points} Pont
-                                    </p>
+                                    {team.stats && (
+                                        <p className="team-stats">
+                                            {statsSeason?.name}: {team.stats.played} M • {team.stats.wins} Gy • {team.stats.draws} D • {team.stats.losses} V • {team.stats.points} Pont
+                                        </p>
+                                    )}
                                 </div>
                                 {isLoggedIn && playerId && !playerTeam && (!pendingRequestTeamIds.includes(team.id) || successJoiningTeamId === team.id) && (
                                     <button

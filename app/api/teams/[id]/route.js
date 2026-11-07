@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getDatabase } from "../../../../lib/database";
 import { jsonError } from "../../../../lib/api";
+import { listDisplaySeasons } from "../../../../lib/seasons";
+import { getSeasonStandings } from "../../../../lib/standings";
 
 const MATCHES_QUERY = `SELECT
         m.id,
@@ -36,11 +38,6 @@ export async function GET(request, context) {
                     t.id,
                     t.name,
                     t.captain_player_id as captainPlayerId,
-                    t.matches,
-                    t.wins,
-                    t.draws,
-                    t.losses,
-                    t.points,
                     l.id as leagueId,
                     l.name as leagueName,
                     l.country as leagueCountry
@@ -53,6 +50,16 @@ export async function GET(request, context) {
         if (!row) {
             return jsonError(404, "A csapat nem található");
         }
+
+        // The team's table row in the most relevant season it has matches in
+        // (same order as the public pages' default, see lib/seasons.js)
+        failMessage = "Hiba történt a tabella számításakor";
+        const [season = null] = listDisplaySeasons(db, { teamId: row.id });
+        const standing = season
+            ? getSeasonStandings(db, season.id)
+                  .flatMap((league) => league.teams)
+                  .find((team) => team.id === row.id)
+            : null;
 
         // Fetch upcoming matches
         failMessage = "Hiba történt a mérkőzések lekérdezésekor";
@@ -82,17 +89,14 @@ export async function GET(request, context) {
                     id: row.id,
                     name: row.name,
                     captainPlayerId: row.captainPlayerId,
-                    matches: row.matches,
-                    wins: row.wins,
-                    draws: row.draws,
-                    losses: row.losses,
-                    points: row.points,
                     league: {
                         id: row.leagueId,
                         name: row.leagueName,
                         country: row.leagueCountry,
                     },
                 },
+                season,
+                standing: standing ?? null,
                 upcomingMatches,
                 previousMatches,
             },
