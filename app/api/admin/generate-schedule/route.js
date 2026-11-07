@@ -10,6 +10,7 @@ import {
     buildRecurringKey,
 } from "../../../../lib/preference-rules";
 import { PUBLISHED_STATUSES } from "../../../../lib/publish-schedule";
+import { GENERATABLE_STATUSES } from "../../../../lib/season-status";
 
 // A team plays at most this many matches in one calendar week (Monday-Sunday)
 const MAX_MATCHES_PER_TEAM_PER_WEEK = 1;
@@ -51,6 +52,13 @@ export async function POST(request) {
             );
         }
 
+        if (!GENERATABLE_STATUSES.includes(season.status)) {
+            return jsonError(
+                400,
+                "Ütemezés csak a nevezés lezárása után (preferencia szakaszban) generálható",
+            );
+        }
+
         const timeSlots = db
             .prepare(
                 `SELECT id, pitch_id as pitchId, slot_date as slotDate, day_of_week as dayOfWeek, start_time as startTime, end_time as endTime
@@ -67,21 +75,23 @@ export async function POST(request) {
             );
         }
 
+        // Only teams registered for the season are scheduled
         const leagueRows = db
             .prepare(
-                `SELECT league_id as leagueId, COUNT(*) as teamCount
-                 FROM teams
-                 WHERE league_id IS NOT NULL
-                 GROUP BY league_id
+                `SELECT t.league_id as leagueId, COUNT(*) as teamCount
+                 FROM season_teams st
+                 JOIN teams t ON t.id = st.team_id
+                 WHERE st.season_id = ?
+                 GROUP BY t.league_id
                  HAVING COUNT(*) >= 2
-                 ORDER BY league_id`,
+                 ORDER BY t.league_id`,
             )
-            .all();
+            .all(seasonId);
 
         if (leagueRows.length === 0) {
             return NextResponse.json(
                 {
-                    error: "Nincs legalább két csapatot tartalmazó liga az ütemezéshez",
+                    error: "Nincs legalább két nevezett csapatot tartalmazó liga az ütemezéshez",
                 },
                 { status: 400 },
             );
@@ -128,7 +138,11 @@ export async function POST(request) {
         );
 
         const teamsInLeague = db.prepare(
-            `SELECT id, name FROM teams WHERE league_id = ? ORDER BY id`,
+            `SELECT t.id, t.name
+             FROM season_teams st
+             JOIN teams t ON t.id = st.team_id
+             WHERE st.season_id = ? AND t.league_id = ?
+             ORDER BY t.id`,
         );
         const archiveRuns = db.prepare(
             `UPDATE schedule_runs SET status = 'archived'
@@ -152,7 +166,7 @@ export async function POST(request) {
 
             for (const leagueRow of leagueRows) {
                 const leagueId = leagueRow.leagueId;
-                const teams = teamsInLeague.all(leagueId);
+                const teams = teamsInLeague.all(seasonId, leagueId);
 
                 const teamIds = teams.map((team) => team.id);
 
@@ -299,6 +313,10 @@ export async function POST(request) {
                 });
             }
 
+            db.prepare("UPDATE seasons SET status = 'generated' WHERE id = ?").run(
+                seasonId,
+            );
+
             return generationResults;
         });
 
@@ -315,6 +333,7 @@ export async function POST(request) {
                     success: true,
                     seasonId,
                     seasonName: season.name,
+                    seasonStatus: "generated",
                     generatedLeagueCount: generationResults.length,
                     totalMatchCount,
                     results: generationResults,

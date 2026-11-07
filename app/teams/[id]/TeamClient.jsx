@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { getAuthHeaders } from '../../../lib/client-auth';
 import { useAuth } from '../../components/AuthContext';
 import { SampleBadge } from '../../components/SeasonPicker';
+import SeasonRegistration from './SeasonRegistration';
 
 export default function TeamClient({ id }) {
     const [team, setTeam] = useState(null);
@@ -234,6 +235,8 @@ export default function TeamClient({ id }) {
                                 </div>
                             </div>
                         </section>
+
+                        {isTeamCaptain && <SeasonRegistration teamId={id} />}
 
                         <section className="team-card">
                             <div className="section-head">

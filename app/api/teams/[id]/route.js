@@ -61,12 +61,14 @@ export async function GET(request, context) {
                   .find((team) => team.id === row.id)
             : null;
 
-        // Fetch upcoming matches
+        // Upcoming fixtures of the season being played; unplayed fixtures of
+        // other seasons are not "upcoming"
         failMessage = "Hiba történt a mérkőzések lekérdezésekor";
         const upcomingMatches = db
             .prepare(
                 `${MATCHES_QUERY}
                 WHERE m.status = 'upcoming' AND (m.home_team_id = ? OR m.away_team_id = ?)
+                  AND m.season_id = (SELECT id FROM seasons WHERE status = 'active')
                 ORDER BY m.match_date ASC
                 LIMIT 10`,
             )

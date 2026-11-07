@@ -3,9 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { adminFetch } from '../admin-api';
+import { GENERATABLE_STATUSES, PUBLISHED_STATUSES } from '../season-statuses';
 
-// After publishing the schedule is fixed (see lib/publish-schedule.js)
-const PUBLISHED_STATUSES = ['active', 'completed'];
 // Statuses in which /schedule shows the season publicly
 const PUBLIC_STATUSES = ['generated', ...PUBLISHED_STATUSES];
 
@@ -37,6 +36,7 @@ export default function ScheduleTab({ season, onSeasonUpdated, notify }) {
     }, [season.id, loadSchedules, notify]);
 
     const isSeasonPublished = PUBLISHED_STATUSES.includes(season.status);
+    const canGenerate = GENERATABLE_STATUSES.includes(season.status);
     const hasCurrentSchedule = schedules.some((schedule) => schedule.status === 'current');
 
     const handleGenerateSchedule = async () => {
@@ -49,6 +49,7 @@ export default function ScheduleTab({ season, onSeasonUpdated, notify }) {
                 errorMessage: 'Hiba az ütemezés generálása során',
             });
 
+            onSeasonUpdated(season.id, { status: data.seasonStatus });
             notify.success(
                 `Sikeres ütemezés: ${data.generatedLeagueCount || 0} liga, ${data.totalMatchCount || 0} mérkőzés generálva.`,
             );
@@ -91,13 +92,16 @@ export default function ScheduleTab({ season, onSeasonUpdated, notify }) {
             <h3>Ütemezés generálása</h3>
 
             <div className="schedule-info">
-                <p>Ütemezés a kiválasztott szezon minden ligájára készül el.</p>
+                <p>Ütemezés a kiválasztott szezon minden ligájára készül el, a nevezett csapatokkal.</p>
+                {season.status === 'setup' && (
+                    <p>Generálni a nevezés lezárása után lehet (Szezonok fül).</p>
+                )}
                 <p>Pályák konfigurálva: {pitchCount}</p>
                 <p>Időpontok konfigurálva: {timeSlotCount}</p>
                 <button
                     onClick={handleGenerateSchedule}
                     className="btn-primary"
-                    disabled={scheduling || isSeasonPublished || timeSlotCount === 0}
+                    disabled={scheduling || !canGenerate || timeSlotCount === 0}
                 >
                     {scheduling ? 'Generálás folyamatban...' : 'Ütemezés generálása'}
                 </button>
@@ -116,7 +120,7 @@ export default function ScheduleTab({ season, onSeasonUpdated, notify }) {
                             <button
                                 onClick={handlePublishSchedule}
                                 className="btn-primary"
-                                disabled={publishing}
+                                disabled={publishing || season.status !== 'generated'}
                             >
                                 {publishing ? 'Publikálás folyamatban...' : 'Menetrend publikálása'}
                             </button>
@@ -132,10 +136,7 @@ export default function ScheduleTab({ season, onSeasonUpdated, notify }) {
                             Menetrend megtekintése
                         </Link>
                     ) : (
-                        <p>
-                            A menetrend akkor lesz nyilvános, ha a szezon állapota
-                            &quot;generated&quot;, &quot;active&quot; vagy &quot;completed&quot;.
-                        </p>
+                        <p>A menetrend az első sikeres generálás után lesz nyilvános.</p>
                     )}
                 </div>
             )}

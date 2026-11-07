@@ -15,8 +15,8 @@ import {
 } from "../../../../lib/preference-rules";
 
 const ALL_LEAGUES = "all";
-// Preferences may only be seeded before a schedule exists
-const SEEDABLE_STATUSES = ["setup", "team-preferences"];
+// Same rule as a captain saving preferences: only while the season collects them
+const SEEDABLE_STATUSES = ["team-preferences"];
 
 // Fisher-Yates shuffle on a copy, so every ordering is equally likely
 function shuffle(items) {
@@ -96,7 +96,7 @@ export async function POST(request) {
         if (!SEEDABLE_STATUSES.includes(season.status)) {
             return NextResponse.json(
                 {
-                    error: "Teszt preferenciák csak 'setup' vagy 'team-preferences' állapotú szezonhoz tölthetők fel",
+                    error: "Teszt preferenciák csak preferencia szakaszban lévő szezonhoz tölthetők fel (a nevezés lezárása után)",
                 },
                 { status: 400 },
             );
@@ -136,22 +136,31 @@ export async function POST(request) {
             );
         }
 
+        // Only teams registered for the season, like the captains' own saves
         const teams =
             leagueId === ALL_LEAGUES
                 ? db
                       .prepare(
-                          `SELECT id, name, league_id as leagueId FROM teams ORDER BY league_id, name`,
+                          `SELECT t.id, t.name, t.league_id as leagueId
+                           FROM season_teams st
+                           JOIN teams t ON t.id = st.team_id
+                           WHERE st.season_id = ?
+                           ORDER BY t.league_id, t.name`,
                       )
-                      .all()
+                      .all(seasonId)
                 : db
                       .prepare(
-                          `SELECT id, name, league_id as leagueId FROM teams WHERE league_id = ? ORDER BY name`,
+                          `SELECT t.id, t.name, t.league_id as leagueId
+                           FROM season_teams st
+                           JOIN teams t ON t.id = st.team_id
+                           WHERE st.season_id = ? AND t.league_id = ?
+                           ORDER BY t.name`,
                       )
-                      .all(leagueId);
+                      .all(seasonId, leagueId);
 
         if (teams.length === 0) {
             return NextResponse.json(
-                { error: "A kiválasztott ligában nincsenek csapatok" },
+                { error: "A kiválasztott ligában nincs nevezett csapat" },
                 { status: 404 },
             );
         }

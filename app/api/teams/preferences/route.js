@@ -8,8 +8,28 @@ import {
     START_TIMES,
     buildRecurringKey,
 } from "../../../../lib/preference-rules";
+import { isTeamRegistered } from "../../../../lib/season-registration";
 
 const VALID_PREFERENCES = ["preferred", "unavailable", "neutral"];
+
+/**
+ * Preferences can only change while the season collects them, and only for
+ * teams registered for it.
+ * @returns {NextResponse|null} An error response, or null if saving is allowed
+ */
+function checkCanEditPreferences(db, seasonId, teamId) {
+    const season = db.prepare("SELECT id, status FROM seasons WHERE id = ?").get(seasonId);
+    if (!season) {
+        return jsonError(404, "Szezon nem található");
+    }
+    if (season.status !== "team-preferences") {
+        return jsonError(400, "Ebben a szezon állapotban nem módosíthatók a preferenciák");
+    }
+    if (!isTeamRegistered(db, season.id, Number(teamId))) {
+        return jsonError(403, "A csapat nem nevezett erre a szezonra");
+    }
+    return null;
+}
 
 export async function GET(request) {
     const user = await requireCaptainOrAdmin(request);
@@ -80,6 +100,11 @@ export async function POST(request) {
             }
         }
 
+        const blocked = checkCanEditPreferences(getDatabase(), seasonId, teamId);
+        if (blocked) {
+            return blocked;
+        }
+
         try {
             // Upsert on the (season, team, slot) unique key
             getDatabase()
@@ -134,25 +159,15 @@ export async function PUT(request) {
 
         const db = getDatabase();
 
-        let season;
+        let blocked;
         try {
-            season = db
-                .prepare(`SELECT id, status FROM seasons WHERE id = ?`)
-                .get(seasonId);
+            blocked = checkCanEditPreferences(db, seasonId, teamId);
         } catch (err) {
             console.error(err);
             return jsonError(500, "Hiba a szezon ellenőrzésekor");
         }
-
-        if (!season) {
-            return jsonError(404, "Szezon nem található");
-        }
-
-        if (season.status !== "team-preferences") {
-            return jsonError(
-                400,
-                "Ebben a szezon állapotban nem módosíthatók a preferenciák",
-            );
+        if (blocked) {
+            return blocked;
         }
 
         let slotRows;
@@ -377,6 +392,11 @@ export async function DELETE(request) {
             if (!isCaptain) {
                 return jsonError(403, "Nincs jogosultságod");
             }
+        }
+
+        const blocked = checkCanEditPreferences(getDatabase(), seasonId, teamId);
+        if (blocked) {
+            return blocked;
         }
 
         try {

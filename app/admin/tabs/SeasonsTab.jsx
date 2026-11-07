@@ -1,9 +1,25 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { adminFetch } from '../admin-api';
+import { statusLabel } from '../season-statuses';
 
-const SEASON_STATUSES = ['setup', 'team-preferences', 'generated', 'active', 'completed'];
+// The manual step each status allows; the rest happen when generating and
+// publishing (see lib/season-status.js)
+const STATUS_ACTIONS = {
+    setup: {
+        action: 'close-registration',
+        label: 'Nevezés lezárása',
+        confirm: 'A nevezés lezárása után csapat nem nevezhet és nem léphet vissza. Folytatod?',
+        success: 'Nevezés lezárva, a kapitányok megadhatják a preferenciáikat.',
+    },
+    active: {
+        action: 'complete',
+        label: 'Szezon lezárása',
+        confirm: 'A lezárt szezon végleges. Folytatod?',
+        success: 'Szezon lezárva.',
+    },
+};
 
 export default function SeasonsTab({
     seasons,
@@ -14,7 +30,7 @@ export default function SeasonsTab({
     notify,
 }) {
     const [seasonForm, setSeasonForm] = useState({ name: '', startDate: '', endDate: '' });
-    const [updatingSeasonStatusId, setUpdatingSeasonStatusId] = useState(null);
+    const [changingStatusId, setChangingStatusId] = useState(null);
 
     // Dev/demo: seeding test preferences
     const [leagues, setLeagues] = useState([]);
@@ -57,28 +73,26 @@ export default function SeasonsTab({
         }
     };
 
-    const handleSeasonStatusChange = async (season, status) => {
+    const handleStatusAction = async (season) => {
+        const step = STATUS_ACTIONS[season.status];
+        if (!step || !window.confirm(step.confirm)) return;
+
         try {
-            setUpdatingSeasonStatusId(season.id);
+            setChangingStatusId(season.id);
             notify.clear();
 
-            await adminFetch('/api/admin/seasons', {
+            const data = await adminFetch('/api/admin/seasons', {
                 method: 'PUT',
-                body: {
-                    seasonId: season.id,
-                    status,
-                    startDate: season.start_date,
-                    endDate: season.end_date,
-                },
+                body: { seasonId: season.id, action: step.action },
                 errorMessage: 'Hiba a szezon állapot frissítésekor',
             });
 
-            onSeasonUpdated(season.id, { status });
-            notify.success('Szezon állapot frissítve.');
+            onSeasonUpdated(season.id, { status: data.status });
+            notify.success(step.success);
         } catch (err) {
             notify.error(err.message);
         } finally {
-            setUpdatingSeasonStatusId(null);
+            setChangingStatusId(null);
         }
     };
 
@@ -150,6 +164,7 @@ export default function SeasonsTab({
                             <tr>
                                 <th>Név</th>
                                 <th>Állapot</th>
+                                <th>Nevezett csapatok</th>
                                 <th>Kezdés</th>
                                 <th>Befejezés</th>
                             </tr>
@@ -163,18 +178,21 @@ export default function SeasonsTab({
                                 >
                                     <td>{season.name}</td>
                                     <td>
-                                        <select
-                                            className="status-select"
-                                            value={season.status}
-                                            onChange={(e) => handleSeasonStatusChange(season, e.target.value)}
-                                            onClick={(e) => e.stopPropagation()}
-                                            disabled={updatingSeasonStatusId === season.id}
-                                        >
-                                            {SEASON_STATUSES.map((status) => (
-                                                <option key={status} value={status}>{status}</option>
-                                            ))}
-                                        </select>
+                                        {statusLabel(season.status)}
+                                        {STATUS_ACTIONS[season.status] && (
+                                            <button
+                                                className="btn-secondary status-action"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleStatusAction(season);
+                                                }}
+                                                disabled={changingStatusId === season.id}
+                                            >
+                                                {STATUS_ACTIONS[season.status].label}
+                                            </button>
+                                        )}
                                     </td>
+                                    <td>{season.registeredTeamIds?.length ?? 0}</td>
                                     <td>{season.start_date || '-'}</td>
                                     <td>{season.end_date || '-'}</td>
                                 </tr>
@@ -183,6 +201,15 @@ export default function SeasonsTab({
                     </table>
                 )}
             </div>
+
+            {selectedSeason && (
+                <SeasonTeamsPanel
+                    key={selectedSeason.id}
+                    season={selectedSeason}
+                    onRegistrationsChanged={onSeasonsChanged}
+                    notify={notify}
+                />
+            )}
 
             {/* Dev/demo tool: random valid preferences for testing schedule generation */}
             <div className="form-section">
@@ -196,8 +223,9 @@ export default function SeasonsTab({
                     Előfeltétel: a szezonhoz már legyenek generált időpontok.
                 </p>
                 <p>
-                    Ütemezéshez az „Összes liga” kell: a generálás minden legalább 2 csapatos ligát
-                    egyszerre ütemez.
+                    Csak a nevezett csapatok kapnak preferenciát, és csak a nevezés lezárása után.
+                    Ütemezéshez az „Összes liga” kell: a generálás minden legalább 2 nevezett
+                    csapatos ligát egyszerre ütemez.
                 </p>
                 <select
                     value={seedLeagueId}
@@ -218,6 +246,103 @@ export default function SeasonsTab({
                     {seedingPreferences ? 'Feltöltés folyamatban...' : 'Teszt preferenciák feltöltése'}
                 </button>
             </div>
+        </div>
+    );
+}
+
+/**
+ * Teams registered for the selected season. While the season is in setup the
+ * admin can register or withdraw any team, e.g. to prepare a test season.
+ */
+function SeasonTeamsPanel({ season, onRegistrationsChanged, notify }) {
+    const [teams, setTeams] = useState([]);
+    const [minPlayers, setMinPlayers] = useState(0);
+    const [changingTeamId, setChangingTeamId] = useState(null);
+    const canChange = season.status === 'setup';
+
+    // State is only set in the promise callbacks, so the effect can call this on mount
+    const loadTeams = useCallback(
+        () =>
+            adminFetch(`/api/admin/seasons/${season.id}/teams`, {
+                errorMessage: 'Hiba a nevezések lekérdezésekor',
+            }).then(
+                (data) => {
+                    setTeams(data.teams || []);
+                    setMinPlayers(data.minPlayers);
+                },
+                (err) => notify.error(err.message),
+            ),
+        [season.id, notify],
+    );
+
+    useEffect(() => {
+        loadTeams();
+    }, [loadTeams]);
+
+    const handleToggle = async (team) => {
+        try {
+            setChangingTeamId(team.id);
+            notify.clear();
+            await adminFetch(`/api/teams/${team.id}/seasons`, {
+                method: team.registered ? 'DELETE' : 'POST',
+                body: { seasonId: season.id },
+                errorMessage: 'Hiba a nevezés módosításakor',
+            });
+            await Promise.all([loadTeams(), onRegistrationsChanged()]);
+        } catch (err) {
+            notify.error(err.message);
+        } finally {
+            setChangingTeamId(null);
+        }
+    };
+
+    const shownTeams = canChange ? teams : teams.filter((team) => team.registered);
+
+    return (
+        <div className="form-section">
+            <h4>Nevezések – {season.name}</h4>
+            <p>
+                {canChange
+                    ? `Nevezni legalább ${minPlayers} játékossal lehet. A nevezés lezárásakor a létszámot újra ellenőrizzük.`
+                    : 'A nevezés lezárult, a lista már nem módosítható.'}
+            </p>
+            {shownTeams.length === 0 ? (
+                <p>Nincs nevezett csapat.</p>
+            ) : (
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Csapat</th>
+                            <th>Liga</th>
+                            <th>Játékosok</th>
+                            {canChange && <th>Nevezés</th>}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {shownTeams.map((team) => (
+                            <tr key={team.id}>
+                                <td>{team.name}</td>
+                                <td>{team.leagueName}</td>
+                                <td>{team.playerCount}</td>
+                                {canChange && (
+                                    <td>
+                                        <button
+                                            className={team.registered ? 'btn-secondary' : 'btn-primary'}
+                                            onClick={() => handleToggle(team)}
+                                            disabled={
+                                                changingTeamId === team.id ||
+                                                (!team.registered && team.playerCount < minPlayers)
+                                            }
+                                        >
+                                            {team.registered ? 'Visszavonás' : 'Nevezés'}
+                                        </button>
+                                    </td>
+                                )}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
         </div>
     );
 }

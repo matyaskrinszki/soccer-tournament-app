@@ -92,6 +92,59 @@
     color: #3E5879;
 }
 
+.team-card h2 + .registration-note {
+    margin-top: 0.5rem;
+}
+
+.registration-note {
+    color: #3E5879;
+}
+
+.registration-error {
+    color: #b23a48;
+    margin-top: 0.5rem;
+}
+
+.registration-list {
+    list-style: none;
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.registration-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid #D8C4B6;
+    border-radius: 8px;
+}
+
+.registration-status {
+    display: block;
+    color: #3E5879;
+    font-size: 0.9rem;
+}
+
+.registration-btn {
+    padding: 0.5rem 1rem;
+    background: #3E5879;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.registration-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 .team-stats-grid {
     margin-top: 1rem;
     display: grid;

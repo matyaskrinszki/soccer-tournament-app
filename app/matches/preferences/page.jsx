@@ -87,10 +87,12 @@ export default function PreferencesPage() {
         const teamsRes = await fetch('/api/players/me/teams', {
           headers: getAuthHeaders(),
         });
+        let teams = [];
         if (teamsRes.ok) {
-          const teamsData = await teamsRes.json();
-          setUserTeams(teamsData || []);
+          teams = (await teamsRes.json()) || [];
+          setUserTeams(teams);
         }
+        const teamIds = new Set(teams.map((team) => team.id));
 
         const seasonsRes = await fetch('/api/admin/seasons', {
           headers: getAuthHeaders(),
@@ -98,8 +100,11 @@ export default function PreferencesPage() {
         if (seasonsRes.ok) {
           const seasonsData = await seasonsRes.json();
           const seasonsList = seasonsData.seasons || seasonsData || [];
+          // Seasons collecting preferences that one of the captain's teams entered
           const activeSeasons = seasonsList.filter(
-            (season) => season.status === 'team-preferences',
+            (season) =>
+              season.status === 'team-preferences' &&
+              (season.registeredTeamIds || []).some((id) => teamIds.has(id)),
           );
 
           setSeasons(activeSeasons);
@@ -322,7 +327,10 @@ export default function PreferencesPage() {
             <h1>Mérkőzésidőpont Preferenciák</h1>
           </div>
           <div className="preferences-card">
-            <p>Jelenleg nincsenek aktív szezonok, amelyekhez preferenciákat lehetne megadni.</p>
+            <p>
+              Jelenleg nincs olyan szezon, amelyre a csapatod nevezett és már preferenciákat
+              lehet megadni. A nevezést a csapat oldalán teheted meg.
+            </p>
           </div>
         </div>
       </div>

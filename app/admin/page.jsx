@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../components/AuthContext';
 import { adminFetch } from './admin-api';
+import { statusLabel } from './season-statuses';
 import OverviewTab from './tabs/OverviewTab';
 import SeasonsTab from './tabs/SeasonsTab';
 import PitchesTab from './tabs/PitchesTab';
@@ -155,7 +156,7 @@ export default function AdminPage() {
                     >
                         {seasons.map((season) => (
                             <option key={season.id} value={season.id}>
-                                {season.name} ({season.status})
+                                {season.name} ({statusLabel(season.status)})
                             </option>
                         ))}
                     </select>
