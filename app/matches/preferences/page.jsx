@@ -5,11 +5,11 @@ import { getAuthHeaders } from '../../../lib/client-auth';
 import './preferences.css';
 
 const WEEKDAYS = [
-  { index: 0, label: 'Hétfő' },
-  { index: 1, label: 'Kedd' },
-  { index: 2, label: 'Szerda' },
-  { index: 3, label: 'Csütörtök' },
-  { index: 4, label: 'Péntek' },
+  { index: 0, label: 'Hétfő', short: 'H' },
+  { index: 1, label: 'Kedd', short: 'K' },
+  { index: 2, label: 'Szerda', short: 'Sze' },
+  { index: 3, label: 'Csütörtök', short: 'Cs' },
+  { index: 4, label: 'Péntek', short: 'P' },
 ];
 
 const START_TIMES = ['17:00', '18:00', '19:00', '20:00', '21:00', '22:00'];
@@ -422,7 +422,11 @@ export default function PreferencesPage() {
                         <tr>
                           <th>Idő</th>
                           {WEEKDAYS.map((day) => (
-                            <th key={day.index}>{day.label}</th>
+                            <th key={day.index} title={day.label}>
+                              {/* preferences.css shows the short name on phones */}
+                              <span className="day-long">{day.label}</span>
+                              <span className="day-short">{day.short}</span>
+                            </th>
                           ))}
                         </tr>
                       </thead>

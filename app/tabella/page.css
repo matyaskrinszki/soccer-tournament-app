@@ -57,7 +57,7 @@
 
 .leagues-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
   gap: 1.25rem;
 }
 
@@ -290,5 +290,19 @@
 
   .back-link {
     align-self: flex-start;
+  }
+}
+/* Rows stay on one line; the table scrolls sideways inside .table-scroll */
+@media (max-width: 768px) {
+  .standings-table th,
+  .standings-table td {
+    padding: 0.55rem;
+    white-space: nowrap;
+  }
+
+  .position {
+    width: 28px;
+    height: 28px;
+    margin-right: 0.45rem;
   }
 }

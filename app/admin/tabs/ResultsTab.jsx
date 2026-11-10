@@ -115,34 +115,36 @@ export default function ResultsTab({ season, notify }) {
                                 : 'Nincs a szűrésnek megfelelő mérkőzés.'}
                         </p>
                     ) : (
-                        <table className="results-table">
-                            <thead>
-                                <tr>
-                                    <th>Időpont</th>
-                                    <th>Liga</th>
-                                    <th>Hazai</th>
-                                    <th>Eredmény</th>
-                                    <th>Vendég</th>
-                                    <th />
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {visibleMatches.map((match) => (
-                                    <ResultRow
-                                        key={match.id}
-                                        match={match}
-                                        canRecord={match.matchDate <= nowKey}
-                                        mismatch={
-                                            openMismatchIds.has(match.id)
-                                                ? mismatches[match.id]
-                                                : null
-                                        }
-                                        onSaved={handleSaved}
-                                        notify={notify}
-                                    />
-                                ))}
-                            </tbody>
-                        </table>
+                        <div className="table-scroll">
+                            <table className="results-table">
+                                <thead>
+                                    <tr>
+                                        <th>Időpont</th>
+                                        <th>Liga</th>
+                                        <th>Hazai</th>
+                                        <th>Eredmény</th>
+                                        <th>Vendég</th>
+                                        <th />
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {visibleMatches.map((match) => (
+                                        <ResultRow
+                                            key={match.id}
+                                            match={match}
+                                            canRecord={match.matchDate <= nowKey}
+                                            mismatch={
+                                                openMismatchIds.has(match.id)
+                                                    ? mismatches[match.id]
+                                                    : null
+                                            }
+                                            onSaved={handleSaved}
+                                            notify={notify}
+                                        />
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     )}
                 </>
             )}

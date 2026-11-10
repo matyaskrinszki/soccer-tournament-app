@@ -91,7 +91,7 @@
 
 .admin-overview {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
     gap: 1.5rem;
     margin-bottom: 1rem;
 }
@@ -396,7 +396,7 @@ a.btn-primary {
 
 .scorers-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
     gap: 1.25rem;
 }
 
@@ -456,7 +456,7 @@ a.btn-primary {
 
 .reports-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
     gap: 1.25rem;
 }
 
@@ -482,4 +482,107 @@ a.btn-primary {
 .btn-small {
     padding: 0.45rem 0.9rem;
     font-size: 0.85rem;
+}
+
+/* Phones and tablets */
+@media (max-width: 768px) {
+    .admin-container {
+        padding: 1.5rem 1rem 2.5rem;
+        gap: 1.25rem;
+    }
+
+    .admin-header h1 {
+        font-size: 1.9rem;
+    }
+
+    /* The tab bar scrolls sideways instead of widening the page */
+    .admin-tabs {
+        gap: 0.25rem;
+        overflow-x: auto;
+    }
+
+    .tab-btn {
+        padding: 0.65rem 0.8rem;
+        white-space: nowrap;
+    }
+
+    /* Table rows stay on one line; the table scrolls inside .table-scroll */
+    .admin-card table th,
+    .admin-card table tr:not(.scorers-row):not(.reports-row) > td {
+        white-space: nowrap;
+    }
+
+    .season-picker {
+        flex-wrap: wrap;
+        gap: 0.4rem;
+    }
+
+    .season-picker select {
+        min-width: 0;
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .admin-header h1 {
+        font-size: 1.6rem;
+    }
+
+    /* All five tabs visible at once, in two rows */
+    .admin-tabs {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.4rem;
+        border-bottom: none;
+        overflow-x: visible;
+    }
+
+    .tab-btn {
+        padding: 0.6rem 0.25rem;
+        border: 1px solid #D8C4B6;
+        border-radius: 8px;
+        background: #ffffff;
+        font-size: 0.85rem;
+    }
+
+    .tab-btn.active {
+        background: #3E5879;
+        border-color: #3E5879;
+        color: #ffffff;
+    }
+
+    .admin-card {
+        padding: 1rem;
+    }
+
+    .form-section,
+    .league-selector,
+    .schedule-info {
+        padding: 1rem;
+    }
+
+    /* Form buttons full width, like the inputs above them */
+    .form-section .btn-primary,
+    .schedule-info .btn-primary {
+        width: 100%;
+    }
+
+    .admin-overview {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+
+    .stat-card {
+        padding: 1rem 0.75rem;
+    }
+
+    .stat-card h3 {
+        font-size: 0.75rem;
+        letter-spacing: 0.04em;
+        margin-bottom: 0.5rem;
+    }
+
+    .stat-number {
+        font-size: 1.9rem;
+    }
 }

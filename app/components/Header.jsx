@@ -13,6 +13,8 @@ export default function Header() {
     // Remembers which player the team was fetched for, so after logout or a user
     // switch the old value is ignored without having to reset it
     const [captainTeam, setCaptainTeam] = useState({ playerId: null, teamId: null });
+    // On phones the links are behind a "Menü" button (Header.css hides it on wider screens)
+    const [menuOpen, setMenuOpen] = useState(false);
     const captainTeamId =
         isLoggedIn && playerId && captainTeam.playerId === playerId ? captainTeam.teamId : null;
 
@@ -82,10 +84,30 @@ export default function Header() {
             </div>
             <header className="header">
                 <div className="header-container">
-                    <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
+                    <Link
+                        href="/"
+                        style={{ textDecoration: 'none', color: 'inherit' }}
+                        onClick={() => setMenuOpen(false)}
+                    >
                         <h1>Futballbajnokság</h1>
                     </Link>
-                    <nav className="nav">
+                    <button
+                        type="button"
+                        className="nav-toggle"
+                        aria-expanded={menuOpen}
+                        aria-controls="main-nav"
+                        onClick={() => setMenuOpen((open) => !open)}
+                    >
+                        {menuOpen ? 'Bezárás' : 'Menü'}
+                    </button>
+                    {/* Choosing a page closes the phone menu */}
+                    <nav
+                        id="main-nav"
+                        className={`nav ${menuOpen ? 'open' : ''}`}
+                        onClick={(e) => {
+                            if (e.target.closest('a')) setMenuOpen(false);
+                        }}
+                    >
                         <Link href="/tabella">Tabella</Link>
                         <Link href="/schedule">Menetrend</Link>
                         <Link href="/players">Játékosok</Link>

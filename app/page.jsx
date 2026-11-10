@@ -115,28 +115,30 @@ export default function Home() {
                                     {home.standings.map((league) => (
                                         <div key={league.id} className="league-summary">
                                             <h3>{league.name}</h3>
-                                            <table className="standings-table">
-                                                <thead>
-                                                    <tr>
-                                                        <th>#</th>
-                                                        <th>Csapat</th>
-                                                        <th>M</th>
-                                                        <th>Pont</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {league.teams.map((team) => (
-                                                        <tr key={team.id}>
-                                                            <td>{team.position}</td>
-                                                            <td>
-                                                                <Link href={`/teams/${team.id}`}>{team.name}</Link>
-                                                            </td>
-                                                            <td>{team.played}</td>
-                                                            <td><strong>{team.points}</strong></td>
+                                            <div className="table-scroll">
+                                                <table className="standings-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>#</th>
+                                                            <th>Csapat</th>
+                                                            <th>M</th>
+                                                            <th>Pont</th>
                                                         </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
+                                                    </thead>
+                                                    <tbody>
+                                                        {league.teams.map((team) => (
+                                                            <tr key={team.id}>
+                                                                <td>{team.position}</td>
+                                                                <td>
+                                                                    <Link href={`/teams/${team.id}`}>{team.name}</Link>
+                                                                </td>
+                                                                <td>{team.played}</td>
+                                                                <td><strong>{team.points}</strong></td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
                                         </div>
                                     ))}
                                 </div>

@@ -59,7 +59,7 @@
 
 .selector-section {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
   padding-bottom: 2rem;
@@ -267,6 +267,22 @@
   cursor: not-allowed;
 }
 
+/* Short day names are only for phones */
+.calendar-table .day-short {
+  display: none;
+}
+
+/* The week grid fits the screen instead of scrolling: 5 day columns shrink */
+@media (max-width: 768px) {
+  .calendar-table {
+    min-width: 0;
+  }
+
+  .btn-save {
+    width: 100%;
+  }
+}
+
 @media (max-width: 600px) {
   .preferences-container {
     padding: 1.5rem 1rem 2rem;
@@ -278,5 +294,52 @@
 
   .selector-section {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .preferences-header h1 {
+    font-size: 1.45rem;
+  }
+
+  .preferences-card {
+    padding: 1rem;
+  }
+
+  .single-week-card {
+    padding: 0.4rem;
+  }
+
+  .calendar-table .day-long {
+    display: none;
+  }
+
+  .calendar-table .day-short {
+    display: inline;
+  }
+
+  .calendar-table col.time-col,
+  .time-cell {
+    width: 3.25rem;
+  }
+
+  .calendar-table col.day-col {
+    width: calc((100% - 3.25rem) / 5);
+  }
+
+  .calendar-table th,
+  .calendar-table td {
+    padding: 0.3rem 0.15rem;
+  }
+
+  .calendar-table thead th,
+  .time-cell {
+    font-size: 0.8rem;
+  }
+
+  /* Still a comfortable tap target at 375px: 5 x 36px + the time column fit */
+  .pref-square {
+    width: 36px;
+    height: 36px;
   }
 }

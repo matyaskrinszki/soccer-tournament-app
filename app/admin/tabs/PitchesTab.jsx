@@ -156,35 +156,37 @@ export default function PitchesTab({ season, notify }) {
                 {timeSlots.length === 0 ? (
                     <p>Nincsenek időpontok konfigurálva.</p>
                 ) : (
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Dátum</th>
-                                <th>Pálya</th>
-                                <th>Nap</th>
-                                <th>Időpont</th>
-                                <th>Művelet</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {timeSlots.map((slot) => {
-                                const pitch = pitches.find((p) => p.id === slot.pitchId);
-                                return (
-                                    <tr key={slot.id}>
-                                        <td>{slot.slotDate || '-'}</td>
-                                        <td>{pitch?.name || 'Ismeretlen'}</td>
-                                        <td>{DAY_NAMES[slot.dayOfWeek]}</td>
-                                        <td>{slot.startTime} - {slot.endTime}</td>
-                                        <td>
-                                            <button className="btn-danger" onClick={() => handleDeleteTimeSlot(slot.id)}>
-                                                Törlés
-                                            </button>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
+                    <div className="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Dátum</th>
+                                    <th>Pálya</th>
+                                    <th>Nap</th>
+                                    <th>Időpont</th>
+                                    <th>Művelet</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {timeSlots.map((slot) => {
+                                    const pitch = pitches.find((p) => p.id === slot.pitchId);
+                                    return (
+                                        <tr key={slot.id}>
+                                            <td>{slot.slotDate || '-'}</td>
+                                            <td>{pitch?.name || 'Ismeretlen'}</td>
+                                            <td>{DAY_NAMES[slot.dayOfWeek]}</td>
+                                            <td>{slot.startTime} - {slot.endTime}</td>
+                                            <td>
+                                                <button className="btn-danger" onClick={() => handleDeleteTimeSlot(slot.id)}>
+                                                    Törlés
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
                 )}
             </div>
         </div>

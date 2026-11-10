@@ -159,46 +159,48 @@ export default function SeasonsTab({
                 {seasons.length === 0 ? (
                     <p>Nincsenek szezonok.</p>
                 ) : (
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Név</th>
-                                <th>Állapot</th>
-                                <th>Nevezett csapatok</th>
-                                <th>Kezdés</th>
-                                <th>Befejezés</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {seasons.map((season) => (
-                                <tr
-                                    key={season.id}
-                                    onClick={() => onSelectSeason(season.id)}
-                                    className={`selectable-row ${selectedSeason?.id === season.id ? 'selected' : ''}`}
-                                >
-                                    <td>{season.name}</td>
-                                    <td>
-                                        {statusLabel(season.status)}
-                                        {STATUS_ACTIONS[season.status] && (
-                                            <button
-                                                className="btn-secondary status-action"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleStatusAction(season);
-                                                }}
-                                                disabled={changingStatusId === season.id}
-                                            >
-                                                {STATUS_ACTIONS[season.status].label}
-                                            </button>
-                                        )}
-                                    </td>
-                                    <td>{season.registeredTeamIds?.length ?? 0}</td>
-                                    <td>{season.start_date || '-'}</td>
-                                    <td>{season.end_date || '-'}</td>
+                    <div className="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Név</th>
+                                    <th>Állapot</th>
+                                    <th>Nevezett csapatok</th>
+                                    <th>Kezdés</th>
+                                    <th>Befejezés</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {seasons.map((season) => (
+                                    <tr
+                                        key={season.id}
+                                        onClick={() => onSelectSeason(season.id)}
+                                        className={`selectable-row ${selectedSeason?.id === season.id ? 'selected' : ''}`}
+                                    >
+                                        <td>{season.name}</td>
+                                        <td>
+                                            {statusLabel(season.status)}
+                                            {STATUS_ACTIONS[season.status] && (
+                                                <button
+                                                    className="btn-secondary status-action"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleStatusAction(season);
+                                                    }}
+                                                    disabled={changingStatusId === season.id}
+                                                >
+                                                    {STATUS_ACTIONS[season.status].label}
+                                                </button>
+                                            )}
+                                        </td>
+                                        <td>{season.registeredTeamIds?.length ?? 0}</td>
+                                        <td>{season.start_date || '-'}</td>
+                                        <td>{season.end_date || '-'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 )}
             </div>
 
@@ -309,39 +311,41 @@ function SeasonTeamsPanel({ season, onRegistrationsChanged, notify }) {
             {shownTeams.length === 0 ? (
                 <p>Nincs nevezett csapat.</p>
             ) : (
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Csapat</th>
-                            <th>Liga</th>
-                            <th>Játékosok</th>
-                            {canChange && <th>Nevezés</th>}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {shownTeams.map((team) => (
-                            <tr key={team.id}>
-                                <td>{team.name}</td>
-                                <td>{team.leagueName}</td>
-                                <td>{team.playerCount}</td>
-                                {canChange && (
-                                    <td>
-                                        <button
-                                            className={team.registered ? 'btn-secondary' : 'btn-primary'}
-                                            onClick={() => handleToggle(team)}
-                                            disabled={
-                                                changingTeamId === team.id ||
-                                                (!team.registered && team.playerCount < minPlayers)
-                                            }
-                                        >
-                                            {team.registered ? 'Visszavonás' : 'Nevezés'}
-                                        </button>
-                                    </td>
-                                )}
+                <div className="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Csapat</th>
+                                <th>Liga</th>
+                                <th>Játékosok</th>
+                                {canChange && <th>Nevezés</th>}
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {shownTeams.map((team) => (
+                                <tr key={team.id}>
+                                    <td>{team.name}</td>
+                                    <td>{team.leagueName}</td>
+                                    <td>{team.playerCount}</td>
+                                    {canChange && (
+                                        <td>
+                                            <button
+                                                className={team.registered ? 'btn-secondary' : 'btn-primary'}
+                                                onClick={() => handleToggle(team)}
+                                                disabled={
+                                                    changingTeamId === team.id ||
+                                                    (!team.registered && team.playerCount < minPlayers)
+                                                }
+                                            >
+                                                {team.registered ? 'Visszavonás' : 'Nevezés'}
+                                            </button>
+                                        </td>
+                                    )}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             )}
         </div>
     );

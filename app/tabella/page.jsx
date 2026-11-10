@@ -123,41 +123,43 @@ export default function StandingsPage() {
                                         <p className="team-count-text">{league.teams.length} csapat</p>
                                     </div>
 
-                                    <table className="standings-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Csapat</th>
-                                                <th title="Mérkőzések száma">Ms</th>
-                                                <th title="Győzelmek">Gy</th>
-                                                <th title="Döntetlenek">D</th>
-                                                <th title="Vereségek">V</th>
-                                                <th title="Lőtt gólok">LG</th>
-                                                <th title="Kapott gólok">KG</th>
-                                                <th title="Gólkülönbség">GK</th>
-                                                <th>Pont</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {league.teams.map((team) => (
-                                                <tr key={team.id}>
-                                                    <td>
-                                                        <span className="position">{team.position}</span>
-                                                        <Link href={`/teams/${team.id}`} className="team-name">
-                                                            {team.name}
-                                                        </Link>
-                                                    </td>
-                                                    <td>{team.played}</td>
-                                                    <td>{team.wins}</td>
-                                                    <td>{team.draws}</td>
-                                                    <td>{team.losses}</td>
-                                                    <td>{team.goalsFor}</td>
-                                                    <td>{team.goalsAgainst}</td>
-                                                    <td>{formatGoalDifference(team.goalDifference)}</td>
-                                                    <td className="points">{team.points}</td>
+                                    <div className="table-scroll">
+                                        <table className="standings-table">
+                                            <thead>
+                                                <tr>
+                                                    <th>Csapat</th>
+                                                    <th title="Mérkőzések száma">Ms</th>
+                                                    <th title="Győzelmek">Gy</th>
+                                                    <th title="Döntetlenek">D</th>
+                                                    <th title="Vereségek">V</th>
+                                                    <th title="Lőtt gólok">LG</th>
+                                                    <th title="Kapott gólok">KG</th>
+                                                    <th title="Gólkülönbség">GK</th>
+                                                    <th>Pont</th>
                                                 </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
+                                            </thead>
+                                            <tbody>
+                                                {league.teams.map((team) => (
+                                                    <tr key={team.id}>
+                                                        <td>
+                                                            <span className="position">{team.position}</span>
+                                                            <Link href={`/teams/${team.id}`} className="team-name">
+                                                                {team.name}
+                                                            </Link>
+                                                        </td>
+                                                        <td>{team.played}</td>
+                                                        <td>{team.wins}</td>
+                                                        <td>{team.draws}</td>
+                                                        <td>{team.losses}</td>
+                                                        <td>{team.goalsFor}</td>
+                                                        <td>{team.goalsAgainst}</td>
+                                                        <td>{formatGoalDifference(team.goalDifference)}</td>
+                                                        <td className="points">{team.points}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </>
                             );
                         })()}

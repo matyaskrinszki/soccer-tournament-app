@@ -144,26 +144,28 @@ export default function ScheduleTab({ season, onSeasonUpdated, notify }) {
             {schedules.length > 0 && (
                 <div className="schedules-history">
                     <h4>Generálási előzmények</h4>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Generálva</th>
-                                <th>Liga</th>
-                                <th>Elégedettség %</th>
-                                <th>Állapot</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {schedules.map((schedule) => (
-                                <tr key={schedule.id}>
-                                    <td>{new Date(schedule.generatedAt).toLocaleString('hu-HU')}</td>
-                                    <td>{schedule.leagueName || schedule.leagueId || '-'}</td>
-                                    <td>{schedule.algorithmScore}%</td>
-                                    <td>{schedule.status === 'current' ? '✓ Aktív' : 'Archiválva'}</td>
+                    <div className="table-scroll">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Generálva</th>
+                                    <th>Liga</th>
+                                    <th>Elégedettség %</th>
+                                    <th>Állapot</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {schedules.map((schedule) => (
+                                    <tr key={schedule.id}>
+                                        <td>{new Date(schedule.generatedAt).toLocaleString('hu-HU')}</td>
+                                        <td>{schedule.leagueName || schedule.leagueId || '-'}</td>
+                                        <td>{schedule.algorithmScore}%</td>
+                                        <td>{schedule.status === 'current' ? '✓ Aktív' : 'Archiválva'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
         </div>

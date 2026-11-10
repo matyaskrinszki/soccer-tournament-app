@@ -114,7 +114,7 @@ export default function ReportPanel({ match, onFinalized }) {
                     {message && <p className={`report-message ${message.type}`}>{message.text}</p>}
 
                     <form onSubmit={handleSubmit}>
-                        <div className="report-score">
+                        <div className="report-score-inputs">
                             <label>
                                 {match.homeTeam.name}
                                 <input

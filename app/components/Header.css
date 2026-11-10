@@ -78,6 +78,9 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
+    /* Just above the menu breakpoint, links that don't fit wrap below the title */
+    flex-wrap: wrap;
+    gap: 0.75rem;
 }
 
 .header h1 {
@@ -88,6 +91,7 @@
 
 .nav {
     display: flex;
+    flex-wrap: wrap;
     gap: 1rem;
     align-items: center;
 }
@@ -112,38 +116,89 @@
     transform: translateY(-1px);
 }
 
-@media (max-width: 768px) {
+/* Only shown below 1024px, see below. A logged-in admin has 8 links, which
+   need about 1040px next to the title */
+.nav-toggle {
+    display: none;
+    padding: 0.5rem 0.9rem;
+    background: #F5EFE7;
+    border: 1px solid #D8C4B6;
+    border-radius: 8px;
+    color: #213555;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+@media (max-width: 1024px) {
     .top-bar-container {
-        padding: 0 0.5rem;
+        padding: 0 1rem;
     }
 
     .auth-section {
         gap: 0.8rem;
+        min-width: 0;
     }
 
     .auth-link {
         font-size: 0.8rem;
     }
 
+    /* A long email address must not push "Kijelentkezés" off the screen */
+    .auth-link.user-email-link {
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .header {
+        padding: 0.6rem 0;
+    }
+
     .header-container {
-        flex-direction: column;
-        gap: 0.8rem;
-        padding: 0 0.5rem;
+        flex-wrap: wrap;
+        gap: 0.6rem;
     }
 
     .header h1 {
         font-size: 1.3rem;
     }
 
+    .nav-toggle {
+        display: block;
+    }
+
+    /* The links open below the title as a full-width menu */
     .nav {
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 0.6rem;
+        display: none;
+        width: 100%;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.5rem;
+        padding-bottom: 0.25rem;
+    }
+
+    .nav.open {
+        display: grid;
     }
 
     .nav a,
     .nav button {
-        padding: 0.45rem 0.8rem;
-        font-size: 0.85rem;
+        padding: 0.6rem 0.5rem;
+        font-size: 0.9rem;
+        text-align: center;
+    }
+}
+
+@media (max-width: 768px) {
+    .nav {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 480px) {
+    .nav {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
