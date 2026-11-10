@@ -267,6 +267,13 @@
     margin-top: 0.25rem;
 }
 
+.report-tag {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #b45309;
+    margin-top: 0.25rem;
+}
+
 .match-league {
     text-align: right;
     color: #3E5879;

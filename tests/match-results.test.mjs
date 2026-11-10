@@ -8,6 +8,7 @@ import Database from "better-sqlite3";
 import * as m001 from "../lib/migrations/001_initial_schema.js";
 import * as m003 from "../lib/migrations/003_link_matches_to_schedule.js";
 import * as m007 from "../lib/migrations/007_goal_scorers.js";
+import * as m008 from "../lib/migrations/008_match_reports.js";
 import {
     parseScore,
     listSeasonMatches,
@@ -23,6 +24,7 @@ function createDatabase() {
     m001.up(db);
     m003.up(db);
     m007.up(db);
+    m008.up(db);
     db.exec(`
         INSERT INTO leagues (id, name, country) VALUES ('a-league', 'A League', 'HU');
         INSERT INTO teams (id, name, league_id) VALUES
@@ -314,7 +316,13 @@ describe("getAdminStats", () => {
 
     it("counts zero matches on an empty table", () => {
         const stats = getAdminStats(db, { now: NOW });
-        assert.deepEqual(stats.matches, { total: 0, finished: 0, upcoming: 0, awaitingResult: 0 });
+        assert.deepEqual(stats.matches, {
+            total: 0,
+            finished: 0,
+            upcoming: 0,
+            awaitingResult: 0,
+            mismatches: 0,
+        });
     });
 
     it("counts entities and splits matches by status", () => {
@@ -337,7 +345,7 @@ describe("getAdminStats", () => {
             seasons: 2,
             activeSeasons: 1,
             pendingJoinRequests: 1,
-            matches: { total: 3, finished: 1, upcoming: 2, awaitingResult: 1 },
+            matches: { total: 3, finished: 1, upcoming: 2, awaitingResult: 1, mismatches: 0 },
         });
     });
 });

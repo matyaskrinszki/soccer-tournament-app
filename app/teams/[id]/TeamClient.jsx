@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getAuthHeaders } from '../../../lib/client-auth';
+import { toLocalDateTimeKey } from '../../../lib/home';
 import { useAuth } from '../../components/AuthContext';
 import { SampleBadge } from '../../components/SeasonPicker';
 import SeasonRegistration from './SeasonRegistration';
@@ -162,6 +163,10 @@ export default function TeamClient({ id }) {
         }
     };
 
+    // Kicked-off matches without a result can be reported by the captain; the same
+    // comparison as the server, match_date is local time without a time zone
+    const nowKey = toLocalDateTimeKey(new Date());
+
     return (
         <div className="team-page">
             <main className="team-container">
@@ -295,6 +300,10 @@ export default function TeamClient({ id }) {
                                                         <div className="match-vs">
                                                             <span className="home-away">{isHome ? 'Otthon' : 'Idegenben'}</span>
                                                             <span className="opponent">{opponent}</span>
+                                                            {/* The form is on the match page */}
+                                                            {isTeamCaptain && m.matchDate <= nowKey && (
+                                                                <span className="report-tag">Eredmény jelentése →</span>
+                                                            )}
                                                         </div>
                                                         <div className="match-league">{m.leagueName}</div>
                                                     </Link>

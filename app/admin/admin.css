@@ -443,6 +443,42 @@ a.btn-primary {
     font-weight: 600;
 }
 
+/* Captain reports that differ */
+.results-hint {
+    margin: 0.75rem 0 0;
+    color: #3E5879;
+    font-size: 0.9rem;
+}
+
+.results-table tr.reports-row > td {
+    background: #fff8ec;
+}
+
+.reports-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.25rem;
+}
+
+.captain-report h4 {
+    margin: 0 0 0.35rem;
+    color: #213555;
+}
+
+.captain-report p,
+.captain-report ul {
+    margin: 0.2rem 0;
+}
+
+.captain-report ul {
+    padding-left: 1.1rem;
+}
+
+.report-score {
+    font-weight: 700;
+    color: #1a1a1a;
+}
+
 .btn-small {
     padding: 0.45rem 0.9rem;
     font-size: 0.85rem;

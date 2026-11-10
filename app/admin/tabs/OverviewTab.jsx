@@ -47,7 +47,20 @@ export default function OverviewTab({ onOpenTab }) {
                     detail={`${matches.finished} lejátszott · ${matches.upcoming} hátralévő`}
                 />
                 <StatCard label="Függő csatlakozási kérelmek" value={stats.pendingJoinRequests} />
+                <StatCard label="Eredmény-eltérések" value={matches.mismatches} />
             </div>
+
+            {matches.mismatches > 0 && (
+                <div className="admin-card attention">
+                    <p>
+                        <strong>{matches.mismatches}</strong> mérkőzésnél eltér a két kapitány
+                        által jelentett eredmény.
+                    </p>
+                    <button className="btn-primary" onClick={() => onOpenTab('results')}>
+                        Eltérések megtekintése
+                    </button>
+                </div>
+            )}
 
             {matches.awaitingResult > 0 && (
                 <div className="admin-card attention">

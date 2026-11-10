@@ -159,6 +159,91 @@
     color: #3E5879;
 }
 
+/* Captain's result report */
+.report-panel h3 {
+    margin: 0 0 0.5rem;
+    color: #213555;
+}
+
+.report-panel h4 {
+    margin: 1rem 0 0.5rem;
+    color: #213555;
+}
+
+.report-score {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    font-weight: 600;
+    color: #213555;
+}
+
+.report-score label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.report-panel input {
+    width: 4rem;
+    padding: 0.4rem;
+    border: 1px solid #D8C4B6;
+    border-radius: 6px;
+    text-align: center;
+    font-family: inherit;
+    font-size: 1rem;
+}
+
+.report-scorers {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 0.35rem;
+    max-width: 420px;
+}
+
+.report-scorers li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.report-summary {
+    margin: 0.6rem 0 0;
+    font-size: 0.9rem;
+    color: #3E5879;
+}
+
+.report-summary.error,
+.report-message.error {
+    color: #b42318;
+    font-weight: 600;
+}
+
+.report-message.success {
+    color: #1e7a3c;
+    font-weight: 600;
+}
+
+.report-submit {
+    margin-top: 1rem;
+    padding: 0.55rem 1.1rem;
+    background: #3E5879;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.report-submit:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 @media (max-width: 720px) {
     .match-header {
         grid-template-columns: 1fr;

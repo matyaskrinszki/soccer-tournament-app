@@ -3,11 +3,16 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { useAuth } from '../../components/AuthContext';
+import ReportPanel from './ReportPanel';
 import './match.css';
 
 export default function MatchPage() {
     const params = useParams();
     const id = params?.id;
+    const { isLoggedIn } = useAuth();
+    // Bumped to load the match again, e.g. after the captains' reports recorded the result
+    const [reloadKey, setReloadKey] = useState(0);
 
     const [match, setMatch] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -32,7 +37,7 @@ export default function MatchPage() {
             }
         };
         fetchMatch();
-    }, [id]);
+    }, [id, reloadKey]);
 
     const formatDate = (iso) => {
         const d = new Date(iso);
@@ -143,6 +148,15 @@ export default function MatchPage() {
                         </section>
                     );
                 })()}
+
+                {/* Only the captains of the two teams see it (checked on the server) */}
+                {match && !loading && !error && isLoggedIn && match.status === 'upcoming' && (
+                    <ReportPanel
+                        key={match.id}
+                        match={match}
+                        onFinalized={() => setReloadKey((key) => key + 1)}
+                    />
+                )}
             </main>
         </div>
     );

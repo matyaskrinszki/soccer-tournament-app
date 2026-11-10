@@ -3,10 +3,12 @@ import { getDatabase } from "../../../../lib/database";
 import { jsonError, serverError } from "../../../../lib/api";
 import { requireAdmin } from "../../../../lib/auth";
 import { listSeasonMatches } from "../../../../lib/match-results";
+import { listSeasonMismatches } from "../../../../lib/match-reports";
 
 /**
- * Published matches of a season, for entering results.
- * GET /api/admin/matches?seasonId=1 -> { matches }
+ * Published matches of a season, for entering results, and the matches whose
+ * captains reported different results.
+ * GET /api/admin/matches?seasonId=1 -> { matches, mismatches }
  */
 export async function GET(request) {
     const user = await requireAdmin(request);
@@ -20,7 +22,11 @@ export async function GET(request) {
     }
 
     try {
-        return NextResponse.json({ matches: listSeasonMatches(getDatabase(), seasonId) });
+        const db = getDatabase();
+        return NextResponse.json({
+            matches: listSeasonMatches(db, seasonId),
+            mismatches: listSeasonMismatches(db, seasonId),
+        });
     } catch (err) {
         return serverError(err);
     }

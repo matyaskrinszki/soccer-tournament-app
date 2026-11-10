@@ -7,7 +7,8 @@ import { getAdminStats } from "../../../../lib/admin-stats";
 /**
  * Counts for the admin overview.
  * GET /api/admin/stats -> { players, teams, leagues, seasons, activeSeasons,
- *     pendingJoinRequests, matches: { total, finished, upcoming, awaitingResult } }
+ *     pendingJoinRequests, matches: { total, finished, upcoming, awaitingResult,
+ *     mismatches } }
  */
 export async function GET(request) {
     const user = await requireAdmin(request);

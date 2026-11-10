@@ -6,6 +6,7 @@ import { adminFetch } from '../admin-api';
 import { toLocalDateTimeKey } from '../../../lib/home';
 
 const FILTERS = [
+    { id: 'mismatches', label: 'Eltérések' },
     { id: 'awaiting', label: 'Eredményre vár' },
     { id: 'finished', label: 'Lejátszott' },
     { id: 'all', label: 'Összes' },
@@ -23,27 +24,49 @@ function formatKickoff(matchDate) {
 
 export default function ResultsTab({ season, notify }) {
     const [matches, setMatches] = useState(null);
+    // Matches whose two captain reports differ, keyed by match id
+    const [mismatches, setMismatches] = useState({});
     const [filter, setFilter] = useState('awaiting');
 
     useEffect(() => {
         adminFetch(`/api/admin/matches?seasonId=${season.id}`, {
             errorMessage: 'Hiba a mérkőzések lekérdezésekor',
         })
-            .then((data) => setMatches(data.matches || []))
+            .then((data) => {
+                setMatches(data.matches || []);
+                const byMatch = Object.fromEntries(
+                    (data.mismatches || []).map((item) => [item.matchId, item]),
+                );
+                setMismatches(byMatch);
+                // Open mismatches are the first thing to deal with
+                if (Object.keys(byMatch).length > 0) setFilter('mismatches');
+            })
             .catch((err) => notify.error(err.message));
     }, [season.id, notify]);
 
     // Same comparison as the server: match_date is local time without a time zone
     const nowKey = toLocalDateTimeKey(new Date());
 
+    // Recording the result resolves a mismatch, so only upcoming matches count
+    const openMismatchIds = useMemo(
+        () =>
+            new Set(
+                (matches ?? [])
+                    .filter((m) => m.status === 'upcoming' && mismatches[m.id])
+                    .map((m) => m.id),
+            ),
+        [matches, mismatches],
+    );
+
     const visibleMatches = useMemo(() => {
         if (!matches) return [];
+        if (filter === 'mismatches') return matches.filter((m) => openMismatchIds.has(m.id));
         if (filter === 'finished') return matches.filter((m) => m.status === 'finished');
         if (filter === 'awaiting') {
             return matches.filter((m) => m.status === 'upcoming' && m.matchDate <= nowKey);
         }
         return matches;
-    }, [matches, filter, nowKey]);
+    }, [matches, filter, nowKey, openMismatchIds]);
 
     const handleSaved = (saved) => {
         setMatches((prev) => prev.map((m) => (m.id === saved.id ? { ...m, ...saved } : m)));
@@ -73,12 +96,24 @@ export default function ResultsTab({ season, notify }) {
                                 onClick={() => setFilter(item.id)}
                             >
                                 {item.label}
+                                {item.id === 'mismatches' && ` (${openMismatchIds.size})`}
                             </button>
                         ))}
                     </div>
 
+                    {filter === 'mismatches' && visibleMatches.length > 0 && (
+                        <p className="results-hint">
+                            Ezeknél a mérkőzéseknél a két kapitány jelentése eltér. Rögzítsd a
+                            végleges eredményt a szokásos módon, ezzel az eltérés megszűnik.
+                        </p>
+                    )}
+
                     {visibleMatches.length === 0 ? (
-                        <p>Nincs a szűrésnek megfelelő mérkőzés.</p>
+                        <p>
+                            {filter === 'mismatches'
+                                ? 'Nincs nyitott eltérés.'
+                                : 'Nincs a szűrésnek megfelelő mérkőzés.'}
+                        </p>
                     ) : (
                         <table className="results-table">
                             <thead>
@@ -97,6 +132,11 @@ export default function ResultsTab({ season, notify }) {
                                         key={match.id}
                                         match={match}
                                         canRecord={match.matchDate <= nowKey}
+                                        mismatch={
+                                            openMismatchIds.has(match.id)
+                                                ? mismatches[match.id]
+                                                : null
+                                        }
                                         onSaved={handleSaved}
                                         notify={notify}
                                     />
@@ -128,7 +168,7 @@ function toGoalCount(value) {
     return Number.isInteger(count) && count > 0 ? count : 0;
 }
 
-function ResultRow({ match, canRecord, onSaved, notify }) {
+function ResultRow({ match, canRecord, mismatch, onSaved, notify }) {
     const [homeScore, setHomeScore] = useState(match.homeScore ?? '');
     const [awayScore, setAwayScore] = useState(match.awayScore ?? '');
     const [saving, setSaving] = useState(false);
@@ -285,6 +325,30 @@ function ResultRow({ match, canRecord, onSaved, notify }) {
                     )}
                 </td>
             </tr>
+            {mismatch && (
+                <tr className="reports-row">
+                    <td colSpan={6}>
+                        <div className="reports-grid">
+                            <CaptainReport
+                                title={`${match.homeTeamName} kapitánya`}
+                                report={mismatch.home}
+                                match={match}
+                            />
+                            <CaptainReport
+                                title={`${match.awayTeamName} kapitánya`}
+                                report={mismatch.away}
+                                match={match}
+                            />
+                        </div>
+                        {mismatch.scoresAgree && (
+                            <p className="scorers-summary error">
+                                A két jelentés eredménye egyezik, de nem lehetett automatikusan
+                                rögzíteni (pl. egy megadott góllövő azóta elhagyta a csapatot).
+                            </p>
+                        )}
+                    </td>
+                </tr>
+            )}
             {scorersOpen && details && (
                 <tr className="scorers-row">
                     <td colSpan={6}>
@@ -306,6 +370,51 @@ function ResultRow({ match, canRecord, onSaved, notify }) {
             )}
         </>
     );
+}
+
+// One captain's report in the mismatch list. Captains only report their own
+// team's scorers; goals without a scorer go to the captain when recorded.
+function CaptainReport({ title, report, match }) {
+    const ownScore = report.teamId === match.homeTeamId ? report.homeScore : report.awayScore;
+    const assigned = report.scorers.reduce((sum, scorer) => sum + scorer.goals, 0);
+
+    return (
+        <div className="captain-report">
+            <h4>{title}</h4>
+            <p className="report-score">
+                {match.homeTeamName} {report.homeScore} - {report.awayScore} {match.awayTeamName}
+            </p>
+            {report.scorers.length > 0 && (
+                <ul>
+                    {report.scorers.map((scorer) => (
+                        <li key={scorer.playerId}>
+                            {scorer.playerName || 'Névtelen játékos'}
+                            {scorer.goals > 1 && ` ×${scorer.goals}`}
+                        </li>
+                    ))}
+                </ul>
+            )}
+            {ownScore > assigned && (
+                <p className="score-pending">
+                    {ownScore - assigned} gól góllövő nélkül (a kapitányhoz kerül)
+                </p>
+            )}
+            <p className="score-pending">
+                Jelentette: {report.reportedBy.name || 'ismeretlen'} ·{' '}
+                {formatReportedAt(report.updatedAt)}
+            </p>
+        </div>
+    );
+}
+
+// updated_at is SQLite's CURRENT_TIMESTAMP: UTC, without a time zone
+function formatReportedAt(updatedAt) {
+    return new Date(`${updatedAt.replace(' ', 'T')}Z`).toLocaleString('hu-HU', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
 }
 
 function ScorerList({ side, counts, disabled, onChange }) {
