@@ -110,28 +110,109 @@ export default function ResultsTab({ season, notify }) {
     );
 }
 
+const countKey = (teamId, playerId) => `${teamId}:${playerId}`;
+
+// Goal counts per player as recorded in the database, keyed by countKey
+function countsFromDetails(details) {
+    const counts = {};
+    for (const team of [details.homeTeam, details.awayTeam]) {
+        for (const player of team.players) {
+            counts[countKey(team.id, player.id)] = player.goals > 0 ? String(player.goals) : '';
+        }
+    }
+    return counts;
+}
+
+function toGoalCount(value) {
+    const count = Number(value);
+    return Number.isInteger(count) && count > 0 ? count : 0;
+}
+
 function ResultRow({ match, canRecord, onSaved, notify }) {
     const [homeScore, setHomeScore] = useState(match.homeScore ?? '');
     const [awayScore, setAwayScore] = useState(match.awayScore ?? '');
     const [saving, setSaving] = useState(false);
+    const [scorersOpen, setScorersOpen] = useState(false);
+    // Possible scorers and recorded goals, loaded when first needed
+    const [details, setDetails] = useState(null);
+    const [counts, setCounts] = useState({});
 
     const isFinished = match.status === 'finished';
+    const scorersChanged =
+        details !== null &&
+        Object.entries(countsFromDetails(details)).some(
+            ([key, value]) => toGoalCount(value) !== toGoalCount(counts[key]),
+        );
     const isUnchanged =
         isFinished &&
         String(homeScore) === String(match.homeScore) &&
-        String(awayScore) === String(match.awayScore);
+        String(awayScore) === String(match.awayScore) &&
+        !scorersChanged;
+
+    const sides = details
+        ? [
+              { team: details.homeTeam, score: homeScore },
+              { team: details.awayTeam, score: awayScore },
+          ].map(({ team, score }) => ({
+              team,
+              score: score === '' ? null : Number(score),
+              assigned: team.players.reduce(
+                  (sum, player) => sum + toGoalCount(counts[countKey(team.id, player.id)]),
+                  0,
+              ),
+          }))
+        : [];
+    const tooManyScorers = sides.some((side) => side.score !== null && side.assigned > side.score);
+
+    const loadDetails = async () => {
+        const data = await adminFetch(`/api/admin/matches/${match.id}`, {
+            errorMessage: 'Hiba a góllövők lekérdezésekor',
+        });
+        setDetails(data.match);
+        setCounts(countsFromDetails(data.match));
+        return data.match;
+    };
+
+    const toggleScorers = async () => {
+        if (scorersOpen) {
+            setScorersOpen(false);
+            return;
+        }
+        try {
+            if (!details) await loadDetails();
+            setScorersOpen(true);
+        } catch (err) {
+            notify.error(err.message);
+        }
+    };
 
     const handleSave = async (e) => {
         e.preventDefault();
         try {
             setSaving(true);
             notify.clear();
+
+            // Without opening the editor, the recorded scorers are kept
+            const loaded = details ?? (await loadDetails());
+            const currentCounts = details ? counts : countsFromDetails(loaded);
+            const scorers = [loaded.homeTeam, loaded.awayTeam].flatMap((team) =>
+                team.players
+                    .map((player) => ({
+                        teamId: team.id,
+                        playerId: player.id,
+                        goals: toGoalCount(currentCounts[countKey(team.id, player.id)]),
+                    }))
+                    .filter((scorer) => scorer.goals > 0),
+            );
+
             const data = await adminFetch(`/api/admin/matches/${match.id}`, {
                 method: 'PUT',
-                body: { homeScore, awayScore },
+                body: { homeScore, awayScore, scorers },
                 errorMessage: 'Hiba az eredmény mentésekor',
             });
             onSaved(data.match);
+            // Show the stored scorers, including goals credited to the captain
+            await loadDetails();
             notify.success(
                 `Eredmény mentve: ${match.homeTeamName} ${data.match.homeScore} - ${data.match.awayScore} ${match.awayTeamName}`,
             );
@@ -143,54 +224,144 @@ function ResultRow({ match, canRecord, onSaved, notify }) {
     };
 
     return (
-        <tr>
-            <td>
-                <Link href={`/matches/${match.id}`}>{formatKickoff(match.matchDate)}</Link>
-            </td>
-            <td>{match.leagueName || '-'}</td>
-            <td className="team-cell">{match.homeTeamName}</td>
-            <td>
-                {canRecord ? (
-                    <form className="score-form" id={`result-${match.id}`} onSubmit={handleSave}>
-                        <input
-                            type="number"
-                            min="0"
-                            max="99"
-                            aria-label={`${match.homeTeamName} góljai`}
-                            value={homeScore}
-                            onChange={(e) => setHomeScore(e.target.value)}
-                            disabled={saving}
-                            required
-                        />
-                        <span>-</span>
-                        <input
-                            type="number"
-                            min="0"
-                            max="99"
-                            aria-label={`${match.awayTeamName} góljai`}
-                            value={awayScore}
-                            onChange={(e) => setAwayScore(e.target.value)}
-                            disabled={saving}
-                            required
-                        />
-                    </form>
-                ) : (
-                    <span className="score-pending">még nem játszották</span>
-                )}
-            </td>
-            <td className="team-cell">{match.awayTeamName}</td>
-            <td>
-                {canRecord && (
-                    <button
-                        type="submit"
-                        form={`result-${match.id}`}
-                        className="btn-primary btn-small"
-                        disabled={saving || isUnchanged}
-                    >
-                        {saving ? 'Mentés...' : isFinished ? 'Javítás' : 'Mentés'}
-                    </button>
-                )}
-            </td>
-        </tr>
+        <>
+            <tr>
+                <td>
+                    <Link href={`/matches/${match.id}`}>{formatKickoff(match.matchDate)}</Link>
+                </td>
+                <td>{match.leagueName || '-'}</td>
+                <td className="team-cell">{match.homeTeamName}</td>
+                <td>
+                    {canRecord ? (
+                        <form className="score-form" id={`result-${match.id}`} onSubmit={handleSave}>
+                            <input
+                                type="number"
+                                min="0"
+                                max="99"
+                                aria-label={`${match.homeTeamName} góljai`}
+                                value={homeScore}
+                                onChange={(e) => setHomeScore(e.target.value)}
+                                disabled={saving}
+                                required
+                            />
+                            <span>-</span>
+                            <input
+                                type="number"
+                                min="0"
+                                max="99"
+                                aria-label={`${match.awayTeamName} góljai`}
+                                value={awayScore}
+                                onChange={(e) => setAwayScore(e.target.value)}
+                                disabled={saving}
+                                required
+                            />
+                        </form>
+                    ) : (
+                        <span className="score-pending">még nem játszották</span>
+                    )}
+                </td>
+                <td className="team-cell">{match.awayTeamName}</td>
+                <td>
+                    {canRecord && (
+                        <div className="result-actions">
+                            <button
+                                type="button"
+                                className="btn-secondary btn-small"
+                                onClick={toggleScorers}
+                                aria-expanded={scorersOpen}
+                                disabled={saving}
+                            >
+                                Góllövők
+                            </button>
+                            <button
+                                type="submit"
+                                form={`result-${match.id}`}
+                                className="btn-primary btn-small"
+                                disabled={saving || isUnchanged || tooManyScorers}
+                            >
+                                {saving ? 'Mentés...' : isFinished ? 'Javítás' : 'Mentés'}
+                            </button>
+                        </div>
+                    )}
+                </td>
+            </tr>
+            {scorersOpen && details && (
+                <tr className="scorers-row">
+                    <td colSpan={6}>
+                        <div className="scorers-grid">
+                            {sides.map((side) => (
+                                <ScorerList
+                                    key={side.team.id}
+                                    side={side}
+                                    counts={counts}
+                                    disabled={saving}
+                                    onChange={(key, value) =>
+                                        setCounts((prev) => ({ ...prev, [key]: value }))
+                                    }
+                                />
+                            ))}
+                        </div>
+                    </td>
+                </tr>
+            )}
+        </>
+    );
+}
+
+function ScorerList({ side, counts, disabled, onChange }) {
+    const { team, score, assigned } = side;
+    const captain = team.players.find((player) => player.id === team.captainPlayerId);
+    const leftover = score === null ? 0 : score - assigned;
+
+    let summary;
+    let isError = false;
+    if (leftover < 0) {
+        summary = `Túl sok gól: ${assigned} megadva, a csapat ${score} gólt szerzett`;
+        isError = true;
+    } else if (leftover > 0 && team.captainPlayerId == null) {
+        summary = `${leftover} gól nincs góllövőhöz rendelve, és a csapatnak nincs kapitánya`;
+        isError = true;
+    } else if (leftover > 0) {
+        summary = `${leftover} gól a kapitányhoz (${captain?.name || 'kapitány'}) kerül`;
+    } else {
+        summary = 'Minden gól góllövőhöz rendelve';
+    }
+
+    return (
+        <div className="scorers-team">
+            <h4>{team.name}</h4>
+            {team.players.length === 0 ? (
+                <p className="score-pending">Nincs játékos a csapatban</p>
+            ) : (
+                <ul>
+                    {team.players.map((player) => {
+                        const key = countKey(team.id, player.id);
+                        return (
+                            <li key={player.id}>
+                                <label htmlFor={`goals-${key}`}>
+                                    {player.name || 'Névtelen játékos'}
+                                    {player.id === team.captainPlayerId && (
+                                        <span className="captain-mark"> (K)</span>
+                                    )}
+                                </label>
+                                <input
+                                    id={`goals-${key}`}
+                                    type="number"
+                                    min="0"
+                                    max="99"
+                                    placeholder="0"
+                                    value={counts[key] ?? ''}
+                                    onChange={(e) => onChange(key, e.target.value)}
+                                    disabled={disabled}
+                                />
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
+            {score !== null && (
+                <p className={`scorers-summary ${isError ? 'error' : ''}`}>{summary}</p>
+            )}
+        </div>
     );
 }

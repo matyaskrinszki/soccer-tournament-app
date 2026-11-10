@@ -384,6 +384,65 @@ a.btn-primary {
     color: #8a8a8a;
 }
 
+.result-actions {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.results-table tr.scorers-row > td {
+    background: #f7f3ee;
+}
+
+.scorers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.25rem;
+}
+
+.scorers-team h4 {
+    margin: 0 0 0.5rem;
+    color: #213555;
+}
+
+.scorers-team ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.3rem;
+}
+
+.scorers-team li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.admin-card .scorers-team input {
+    width: 4rem;
+    margin-bottom: 0;
+    padding: 0.3rem;
+    text-align: center;
+}
+
+.captain-mark {
+    color: #8a8a8a;
+    font-size: 0.85rem;
+}
+
+.scorers-summary {
+    margin: 0.6rem 0 0;
+    font-size: 0.85rem;
+    color: #3E5879;
+}
+
+.scorers-summary.error {
+    color: #b42318;
+    font-weight: 600;
+}
+
 .btn-small {
     padding: 0.45rem 0.9rem;
     font-size: 0.85rem;

@@ -35,7 +35,7 @@ function addMatch(db, { id, seasonId = null, date, status, score = [null, null] 
 
 function addGoal(db, matchId) {
     db.prepare(
-        "INSERT INTO goals (match_id, team_id, player_id, minute) VALUES (?, 1, 1, 10)",
+        "INSERT INTO goals (match_id, team_id, player_id) VALUES (?, 1, 1)",
     ).run(matchId);
 }
 

@@ -65,7 +65,7 @@ function addMatch(db, { seasonId, home = 1, away = 2, league = "a-league", score
 function addGoals(db, matchId, playerId, teamId, count) {
     for (let i = 0; i < count; i++) {
         db.prepare(
-            "INSERT INTO goals (match_id, team_id, player_id, minute) VALUES (?, ?, ?, 10)",
+            "INSERT INTO goals (match_id, team_id, player_id) VALUES (?, ?, ?)",
         ).run(matchId, teamId, playerId);
     }
 }

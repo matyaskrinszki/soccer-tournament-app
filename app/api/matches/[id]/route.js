@@ -41,15 +41,16 @@ export async function GET(request, context) {
         }
 
         failMessage = 'Hiba történt a gólok lekérdezésekor';
+        // One entry per scorer: goals are recorded as a count per player
         const goals = db
             .prepare(
-                `SELECT g.id, g.minute, g.team_id as teamId, g.player_id as playerId,
-                        p.name as playerName, t.name as teamName
+                `SELECT g.team_id as teamId, g.player_id as playerId,
+                        p.name as playerName, COUNT(*) as goals
                  FROM goals g
                  JOIN players p ON p.id = g.player_id
-                 JOIN teams t ON t.id = g.team_id
                  WHERE g.match_id = ?
-                 ORDER BY g.minute ASC, g.id ASC`
+                 GROUP BY g.team_id, g.player_id, p.name
+                 ORDER BY goals DESC, p.name ASC`
             )
             .all(id);
 

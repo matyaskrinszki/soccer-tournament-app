@@ -7,9 +7,11 @@ import assert from "node:assert/strict";
 import Database from "better-sqlite3";
 import * as m001 from "../lib/migrations/001_initial_schema.js";
 import * as m003 from "../lib/migrations/003_link_matches_to_schedule.js";
+import * as m007 from "../lib/migrations/007_goal_scorers.js";
 import {
     parseScore,
     listSeasonMatches,
+    getMatchForResult,
     recordMatchResult,
 } from "../lib/match-results.js";
 import { getAdminStats } from "../lib/admin-stats.js";
@@ -20,6 +22,7 @@ function createDatabase() {
     const db = new Database(":memory:");
     m001.up(db);
     m003.up(db);
+    m007.up(db);
     db.exec(`
         INSERT INTO leagues (id, name, country) VALUES ('a-league', 'A League', 'HU');
         INSERT INTO teams (id, name, league_id) VALUES
@@ -92,6 +95,13 @@ describe("recordMatchResult", () => {
     });
 
     it("stores the score and marks the match finished", () => {
+        // Goals without a scorer go to the captains
+        db.exec(`
+            INSERT INTO players (id, email, password, team_id) VALUES
+                (1, 'a@example.com', 'x', 1),
+                (2, 'b@example.com', 'x', 2);
+            UPDATE teams SET captain_player_id = id;
+        `);
         const id = addMatch(db, { date: "2026-10-20T18:00:00" });
 
         const result = recordMatchResult(db, id, { homeScore: "2", awayScore: 1 }, { now: NOW });
@@ -132,6 +142,166 @@ describe("recordMatchResult", () => {
         const result = recordMatchResult(db, 999, { homeScore: 1, awayScore: 0 }, { now: NOW });
         assert.equal(result.ok, false);
         assert.equal(result.status, 404);
+    });
+});
+
+describe("goal scorers", () => {
+    let db;
+    beforeEach(() => {
+        nextId = 1;
+        db = createDatabase();
+        // Alpha: 1 (captain), 2. Bravo: 3 (captain), 4. Player 5 has no team.
+        db.exec(`
+            INSERT INTO players (id, email, password, name, team_id) VALUES
+                (1, 'p1@example.com', 'x', 'Ádám', 1),
+                (2, 'p2@example.com', 'x', 'Béla', 1),
+                (3, 'p3@example.com', 'x', 'Csaba', 2),
+                (4, 'p4@example.com', 'x', 'Dénes', 2),
+                (5, 'p5@example.com', 'x', 'Elek', NULL);
+            UPDATE teams SET captain_player_id = 1 WHERE id = 1;
+            UPDATE teams SET captain_player_id = 3 WHERE id = 2;
+        `);
+    });
+
+    // Goal count per [teamId, playerId], in a stable order
+    function goalCounts(matchId) {
+        return db
+            .prepare(
+                `SELECT team_id, player_id, COUNT(*) as goals FROM goals
+                 WHERE match_id = ? GROUP BY team_id, player_id ORDER BY team_id, player_id`,
+            )
+            .all(matchId)
+            .map((row) => [row.team_id, row.player_id, row.goals]);
+    }
+
+    function record(matchId, homeScore, awayScore, scorers) {
+        return recordMatchResult(db, matchId, { homeScore, awayScore, scorers }, { now: NOW });
+    }
+
+    it("stores one goal row per goal for the given scorers", () => {
+        const id = addMatch(db, { date: "2026-10-20T18:00:00" });
+
+        const result = record(id, 3, 1, [
+            { teamId: 1, playerId: 2, goals: 2 },
+            { teamId: 1, playerId: 1, goals: "1" },
+            { teamId: 2, playerId: 4, goals: 1 },
+        ]);
+
+        assert.equal(result.ok, true);
+        assert.deepEqual(goalCounts(id), [
+            [1, 1, 1],
+            [1, 2, 2],
+            [2, 4, 1],
+        ]);
+    });
+
+    it("credits goals without a scorer to the team's captain", () => {
+        const id = addMatch(db, { date: "2026-10-20T18:00:00" });
+
+        record(id, 3, 2, [{ teamId: 1, playerId: 2, goals: 1 }]);
+
+        assert.deepEqual(goalCounts(id), [
+            [1, 1, 2],
+            [1, 2, 1],
+            [2, 3, 2],
+        ]);
+    });
+
+    it("adds the leftover goals to the captain's own count", () => {
+        const id = addMatch(db, { date: "2026-10-20T18:00:00" });
+
+        record(id, 3, 0, [{ teamId: 1, playerId: 1, goals: 1 }]);
+
+        assert.deepEqual(goalCounts(id), [[1, 1, 3]]);
+    });
+
+    it("rejects more scorer goals than the team scored, without changing anything", () => {
+        const id = addMatch(db, { date: "2026-10-20T18:00:00" });
+
+        const result = record(id, 1, 0, [{ teamId: 1, playerId: 2, goals: 2 }]);
+
+        assert.equal(result.ok, false);
+        assert.equal(result.status, 400);
+        assert.equal(getMatch(db, id).status, "upcoming");
+        assert.deepEqual(goalCounts(id), []);
+    });
+
+    it("rejects leftover goals when the team has no captain", () => {
+        db.exec("UPDATE teams SET captain_player_id = NULL WHERE id = 2");
+        const id = addMatch(db, { date: "2026-10-20T18:00:00" });
+
+        assert.equal(record(id, 0, 1, []).ok, false);
+        assert.equal(record(id, 0, 1, [{ teamId: 2, playerId: 4, goals: 1 }]).ok, true);
+    });
+
+    it("rejects scorers who don't play for the team", () => {
+        const id = addMatch(db, { date: "2026-10-20T18:00:00" });
+
+        for (const scorer of [
+            { teamId: 1, playerId: 3, goals: 1 }, // plays for the opponent
+            { teamId: 1, playerId: 5, goals: 1 }, // has no team
+            { teamId: 9, playerId: 1, goals: 1 }, // team not in the match
+        ]) {
+            const result = record(id, 1, 0, [scorer]);
+            assert.equal(result.ok, false, JSON.stringify(scorer));
+            assert.equal(result.status, 400);
+        }
+        assert.deepEqual(goalCounts(id), []);
+    });
+
+    it("rejects invalid goal counts, duplicate scorers and a non-list", () => {
+        const id = addMatch(db, { date: "2026-10-20T18:00:00" });
+
+        assert.equal(record(id, 2, 0, [{ teamId: 1, playerId: 2, goals: -1 }]).ok, false);
+        assert.equal(record(id, 2, 0, [{ teamId: 1, playerId: 2, goals: 1.5 }]).ok, false);
+        assert.equal(
+            record(id, 2, 0, [
+                { teamId: 1, playerId: 2, goals: 1 },
+                { teamId: 1, playerId: 2, goals: 1 },
+            ]).ok,
+            false,
+        );
+        assert.equal(record(id, 2, 0, "Béla").ok, false);
+        assert.equal(getMatch(db, id).status, "upcoming");
+    });
+
+    it("replaces the scorers when a result is corrected", () => {
+        const id = addMatch(db, { date: "2026-10-20T18:00:00" });
+        record(id, 2, 1, [{ teamId: 1, playerId: 2, goals: 2 }]);
+
+        record(id, 1, 0, [{ teamId: 1, playerId: 1, goals: 1 }]);
+
+        assert.deepEqual(goalCounts(id), [[1, 1, 1]]);
+    });
+
+    it("keeps a scorer who has since left the team eligible for corrections", () => {
+        const id = addMatch(db, { date: "2026-10-20T18:00:00" });
+        record(id, 1, 0, [{ teamId: 1, playerId: 2, goals: 1 }]);
+        db.exec("UPDATE players SET team_id = NULL WHERE id = 2");
+
+        const result = record(id, 2, 0, [{ teamId: 1, playerId: 2, goals: 2 }]);
+
+        assert.equal(result.ok, true);
+        assert.deepEqual(goalCounts(id), [[1, 2, 2]]);
+    });
+
+    it("lists both teams' possible scorers with their recorded goals", () => {
+        const id = addMatch(db, { date: "2026-10-20T18:00:00" });
+        record(id, 2, 0, [{ teamId: 1, playerId: 2, goals: 2 }]);
+        db.exec("UPDATE players SET team_id = NULL WHERE id = 2");
+
+        const match = getMatchForResult(db, id);
+
+        assert.equal(match.homeTeam.captainPlayerId, 1);
+        assert.deepEqual(
+            match.homeTeam.players.map((p) => [p.id, p.goals]),
+            [
+                [1, 0],
+                [2, 2],
+            ],
+        );
+        assert.deepEqual(match.awayTeam.players.map((p) => p.id), [3, 4]);
+        assert.equal(getMatchForResult(db, 999), null);
     });
 });
 
