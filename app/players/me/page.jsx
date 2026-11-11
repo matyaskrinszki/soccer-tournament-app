@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { getAuthHeaders } from '../../../lib/client-auth';
 import { useAuth } from '../../components/AuthContext';
+import CalendarExport from '../../components/CalendarExport';
 
 export default function PlayerMePage() {
     const { isHydrated, isLoggedIn, playerId, updateEmail, openAuthModal } = useAuth();
@@ -310,6 +311,8 @@ export default function PlayerMePage() {
                                     <span className="no-team">Nincs csapata</span>
                                 )}</p>
                             </div>
+
+                            {player.team && <CalendarExport teamId={player.team.id} />}
                         </section>
 
                         <section className="player-card">

@@ -7,6 +7,7 @@ import { toLocalDateTimeKey } from '../../../lib/home';
 import { useAuth } from '../../components/AuthContext';
 import { SampleBadge } from '../../components/SeasonPicker';
 import SeasonRegistration from './SeasonRegistration';
+import CalendarExport from '../../components/CalendarExport';
 
 export default function TeamClient({ id }) {
     const [team, setTeam] = useState(null);
@@ -239,6 +240,8 @@ export default function TeamClient({ id }) {
                                     <p className="value">{standing?.goalsFor ?? 0}:{standing?.goalsAgainst ?? 0}</p>
                                 </div>
                             </div>
+
+                            <CalendarExport teamId={team.id} />
                         </section>
 
                         {isTeamCaptain && <SeasonRegistration teamId={id} />}

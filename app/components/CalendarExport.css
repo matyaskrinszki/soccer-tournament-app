@@ -1,0 +1,35 @@
+.calendar-export {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+}
+
+.calendar-export-btn {
+    display: inline-block;
+    padding: 0.55rem 1rem;
+    background: #3E5879;
+    color: #ffffff;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+}
+
+.calendar-export-btn:hover {
+    background: #2d4560;
+}
+
+.calendar-export-hint {
+    margin: 0;
+    font-size: 0.85rem;
+    color: #3E5879;
+}
+
+@media (max-width: 480px) {
+    .calendar-export-btn {
+        width: 100%;
+        text-align: center;
+    }
+}
