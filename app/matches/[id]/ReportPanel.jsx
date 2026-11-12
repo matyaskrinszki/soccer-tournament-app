@@ -172,7 +172,7 @@ export default function ReportPanel({ match, onFinalized }) {
                                 {leftover < 0
                                     ? `Túl sok gól: ${assigned} megadva, a csapat ${ownScore} gólt szerzett`
                                     : leftover > 0
-                                      ? `${leftover} gól a kapitányhoz kerül`
+                                      ? `${leftover} gól ismeretlen góllövővel kerül rögzítésre (pl. öngól)`
                                       : 'Minden gól góllövőhöz rendelve'}
                             </p>
                         )}

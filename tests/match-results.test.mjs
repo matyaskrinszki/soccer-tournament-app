@@ -97,7 +97,7 @@ describe("recordMatchResult", () => {
     });
 
     it("stores the score and marks the match finished", () => {
-        // Goals without a scorer go to the captains
+        // Goals without a scorer: the score is stored, no goal rows
         db.exec(`
             INSERT INTO players (id, email, password, team_id) VALUES
                 (1, 'a@example.com', 'x', 1),
@@ -197,24 +197,22 @@ describe("goal scorers", () => {
         ]);
     });
 
-    it("credits goals without a scorer to the team's captain", () => {
+    it("stores no goal rows for goals without a scorer (unknown scorer)", () => {
         const id = addMatch(db, { date: "2026-10-20T18:00:00" });
 
-        record(id, 3, 2, [{ teamId: 1, playerId: 2, goals: 1 }]);
+        const result = record(id, 3, 2, [{ teamId: 1, playerId: 2, goals: 1 }]);
 
-        assert.deepEqual(goalCounts(id), [
-            [1, 1, 2],
-            [1, 2, 1],
-            [2, 3, 2],
-        ]);
+        assert.equal(result.ok, true);
+        assert.deepEqual(getMatch(db, id), { home_score: 3, away_score: 2, status: "finished" });
+        assert.deepEqual(goalCounts(id), [[1, 2, 1]]);
     });
 
-    it("adds the leftover goals to the captain's own count", () => {
+    it("doesn't credit unassigned goals to the captain, even if the captain scored", () => {
         const id = addMatch(db, { date: "2026-10-20T18:00:00" });
 
         record(id, 3, 0, [{ teamId: 1, playerId: 1, goals: 1 }]);
 
-        assert.deepEqual(goalCounts(id), [[1, 1, 3]]);
+        assert.deepEqual(goalCounts(id), [[1, 1, 1]]);
     });
 
     it("rejects more scorer goals than the team scored, without changing anything", () => {
@@ -228,12 +226,12 @@ describe("goal scorers", () => {
         assert.deepEqual(goalCounts(id), []);
     });
 
-    it("rejects leftover goals when the team has no captain", () => {
+    it("accepts goals without a scorer when the team has no captain", () => {
         db.exec("UPDATE teams SET captain_player_id = NULL WHERE id = 2");
         const id = addMatch(db, { date: "2026-10-20T18:00:00" });
 
-        assert.equal(record(id, 0, 1, []).ok, false);
-        assert.equal(record(id, 0, 1, [{ teamId: 2, playerId: 4, goals: 1 }]).ok, true);
+        assert.equal(record(id, 0, 1, []).ok, true);
+        assert.deepEqual(goalCounts(id), []);
     });
 
     it("rejects scorers who don't play for the team", () => {

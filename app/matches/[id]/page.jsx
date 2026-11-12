@@ -80,6 +80,10 @@ export default function MatchPage() {
                 {match && !loading && !error && (() => {
                     const homeGoals = (match.goals || []).filter(g => g.teamId === match.homeTeam.id);
                     const awayGoals = (match.goals || []).filter(g => g.teamId === match.awayTeam.id);
+                    // Goals without a recorded scorer (e.g. own goals) have no goal rows
+                    const unknownGoals = (score, goals) => score - goals.reduce((sum, g) => sum + g.goals, 0);
+                    const homeUnknown = unknownGoals(match.homeScore, homeGoals);
+                    const awayUnknown = unknownGoals(match.awayScore, awayGoals);
 
                     return (
                         <section className="match-card">
@@ -115,7 +119,7 @@ export default function MatchPage() {
                                 <div className="goals-grid">
                                     <div className="goal-col">
                                         <h3>Hazai gólok</h3>
-                                        {homeGoals.length === 0 ? (
+                                        {homeGoals.length === 0 && homeUnknown <= 0 ? (
                                             <p className="muted">Nincs gól.</p>
                                         ) : (
                                             <ul>
@@ -125,12 +129,18 @@ export default function MatchPage() {
                                                         {g.goals > 1 && <span className="goal-count">×{g.goals}</span>}
                                                     </li>
                                                 ))}
+                                                {homeUnknown > 0 && (
+                                                    <li className="muted">
+                                                        Ismeretlen góllövő
+                                                        {homeUnknown > 1 && <span className="goal-count">×{homeUnknown}</span>}
+                                                    </li>
+                                                )}
                                             </ul>
                                         )}
                                     </div>
                                     <div className="goal-col">
                                         <h3>Vendég gólok</h3>
-                                        {awayGoals.length === 0 ? (
+                                        {awayGoals.length === 0 && awayUnknown <= 0 ? (
                                             <p className="muted">Nincs gól.</p>
                                         ) : (
                                             <ul>
@@ -140,6 +150,12 @@ export default function MatchPage() {
                                                         {g.goals > 1 && <span className="goal-count">×{g.goals}</span>}
                                                     </li>
                                                 ))}
+                                                {awayUnknown > 0 && (
+                                                    <li className="muted">
+                                                        Ismeretlen góllövő
+                                                        {awayUnknown > 1 && <span className="goal-count">×{awayUnknown}</span>}
+                                                    </li>
+                                                )}
                                             </ul>
                                         )}
                                     </div>

@@ -253,7 +253,7 @@ function ResultRow({ match, canRecord, mismatch, onSaved, notify }) {
                 errorMessage: 'Hiba az eredmény mentésekor',
             });
             onSaved(data.match);
-            // Show the stored scorers, including goals credited to the captain
+            // Show the stored scorers
             await loadDetails();
             notify.success(
                 `Eredmény mentve: ${match.homeTeamName} ${data.match.homeScore} - ${data.match.awayScore} ${match.awayTeamName}`,
@@ -375,7 +375,7 @@ function ResultRow({ match, canRecord, mismatch, onSaved, notify }) {
 }
 
 // One captain's report in the mismatch list. Captains only report their own
-// team's scorers; goals without a scorer go to the captain when recorded.
+// team's scorers; goals without a scorer are recorded with an unknown scorer.
 function CaptainReport({ title, report, match }) {
     const ownScore = report.teamId === match.homeTeamId ? report.homeScore : report.awayScore;
     const assigned = report.scorers.reduce((sum, scorer) => sum + scorer.goals, 0);
@@ -398,7 +398,7 @@ function CaptainReport({ title, report, match }) {
             )}
             {ownScore > assigned && (
                 <p className="score-pending">
-                    {ownScore - assigned} gól góllövő nélkül (a kapitányhoz kerül)
+                    {ownScore - assigned} gól ismeretlen góllövővel
                 </p>
             )}
             <p className="score-pending">
@@ -421,7 +421,6 @@ function formatReportedAt(updatedAt) {
 
 function ScorerList({ side, counts, disabled, onChange }) {
     const { team, score, assigned } = side;
-    const captain = team.players.find((player) => player.id === team.captainPlayerId);
     const leftover = score === null ? 0 : score - assigned;
 
     let summary;
@@ -429,11 +428,8 @@ function ScorerList({ side, counts, disabled, onChange }) {
     if (leftover < 0) {
         summary = `Túl sok gól: ${assigned} megadva, a csapat ${score} gólt szerzett`;
         isError = true;
-    } else if (leftover > 0 && team.captainPlayerId == null) {
-        summary = `${leftover} gól nincs góllövőhöz rendelve, és a csapatnak nincs kapitánya`;
-        isError = true;
     } else if (leftover > 0) {
-        summary = `${leftover} gól a kapitányhoz (${captain?.name || 'kapitány'}) kerül`;
+        summary = `${leftover} gól ismeretlen góllövővel kerül rögzítésre (pl. öngól)`;
     } else {
         summary = 'Minden gól góllövőhöz rendelve';
     }

@@ -107,9 +107,8 @@ describe("submitMatchReport", () => {
 
         assert.equal(result.outcome, "finalized");
         assert.deepEqual(getMatch(db, id), { home_score: 3, away_score: 1, status: "finished" });
-        // Alpha's goal without a scorer goes to its captain
+        // Alpha's third goal has no scorer, so it gets no goal row
         assert.deepEqual(goalCounts(db, id), [
-            [1, 1, 1],
             [1, 2, 2],
             [2, 4, 1],
         ]);
