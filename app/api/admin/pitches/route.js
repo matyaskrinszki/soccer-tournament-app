@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getDatabase } from "../../../../lib/database";
 import { jsonError, serverError, isForeignKeyError } from "../../../../lib/api";
 import { requireAdmin } from "../../../../lib/auth";
+import { sortByName } from "../../../../lib/sort";
 
 export async function GET(request) {
     const user = await requireAdmin(request);
@@ -21,12 +22,11 @@ export async function GET(request) {
             .prepare(
                 `SELECT id, season_id as seasonId, name, location
                  FROM pitches
-                 WHERE season_id = ?
-                 ORDER BY name`,
+                 WHERE season_id = ?`,
             )
             .all(seasonId);
 
-        return NextResponse.json({ pitches });
+        return NextResponse.json({ pitches: sortByName(pitches) });
     } catch (err) {
         console.error(err);
         return jsonError(500, "Hiba a pályák lekérdezésekor");

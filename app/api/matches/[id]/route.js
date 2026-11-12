@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getDatabase } from '../../../../lib/database';
 import { jsonError } from '../../../../lib/api';
+import { compareHu } from '../../../../lib/sort';
 
 export async function GET(request, context) {
     const { id } = await context.params;
@@ -49,10 +50,10 @@ export async function GET(request, context) {
                  FROM goals g
                  JOIN players p ON p.id = g.player_id
                  WHERE g.match_id = ?
-                 GROUP BY g.team_id, g.player_id, p.name
-                 ORDER BY goals DESC, p.name ASC`
+                 GROUP BY g.team_id, g.player_id, p.name`
             )
-            .all(id);
+            .all(id)
+            .sort((a, b) => b.goals - a.goals || compareHu(a.playerName, b.playerName));
 
         return NextResponse.json(
             {

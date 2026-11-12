@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getDatabase } from "../../../../../lib/database";
 import { jsonError, serverError } from "../../../../../lib/api";
 import { requireAuth } from "../../../../../lib/auth";
+import { sortByName } from "../../../../../lib/sort";
 
 export async function GET(request) {
     try {
@@ -17,8 +18,7 @@ export async function GET(request) {
                     `SELECT t.id, t.name, t.league_id, l.name as league_name
                     FROM teams t
                     LEFT JOIN leagues l ON l.id = t.league_id
-                    WHERE t.captain_player_id = ?
-                    ORDER BY t.name`,
+                    WHERE t.captain_player_id = ?`,
                 )
                 .all(playerId);
         } catch (err) {
@@ -26,7 +26,7 @@ export async function GET(request) {
             return jsonError(500, "Hiba történt a csapatok lekérdezésekor");
         }
 
-        return NextResponse.json(rows, { status: 200 });
+        return NextResponse.json(sortByName(rows), { status: 200 });
     } catch (err) {
         return serverError(err);
     }

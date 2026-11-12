@@ -229,6 +229,33 @@ describe("getSeasonStatistics", () => {
         );
     });
 
+    it("breaks goal ties in Hungarian name order and keeps the top 10", () => {
+        const insert = db.prepare(
+            "INSERT INTO players (id, email, password, name, team_id) VALUES (?, ?, 'x', ?, 1)",
+        );
+        // Thirteen one-goal scorers; the accented "Éva" must not drop out after "Zoltán"
+        const names = ["Éva", "Zoltán", "Ábel", "Béla", "Csaba", "Dóra", "Ferenc", "Gábor", "Hanna", "Ilona"];
+        names.forEach((name, i) => insert.run(10 + i, `s${i}@example.com`, name));
+        const match = addMatch(db, { seasonId: 1, score: [12, 0] });
+        const bMatch = addMatch(db, { seasonId: 1, home: 4, away: 5, league: "b-league", score: [1, 0] });
+        for (const id of [1, 2, ...names.map((_, i) => 10 + i)]) {
+            addGoals(db, match, id, 1, 1);
+        }
+        addGoals(db, bMatch, 3, 4, 1);
+
+        const stats = getSeasonStatistics(db, 1);
+
+        assert.deepEqual(
+            stats.topScorers.map((s) => s.name),
+            ["Ábel", "Ann", "Béla", "Bob", "Csaba", "Dan", "Dóra", "Éva", "Ferenc", "Gábor"],
+        );
+        assert.deepEqual(
+            stats.scorersByLeague.map((s) => s.leagueName).slice(-2),
+            ["A League", "B League"],
+        );
+        assert.equal(stats.scorersByLeague.find((s) => s.leagueName === "A League").name, "Ábel");
+    });
+
     it("leaves teams without a finished match out of the team lists", () => {
         addMatch(db, { seasonId: 1, home: 1, away: 2 });
 

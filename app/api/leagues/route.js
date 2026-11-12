@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDatabase } from "../../../lib/database";
 import { serverError } from "../../../lib/api";
+import { sortByName } from "../../../lib/sort";
 
 /**
  * Every league with its current teams, e.g. for "create team" and admin dropdowns.
@@ -14,13 +15,13 @@ export async function GET() {
             .prepare("SELECT id, name, country FROM leagues ORDER BY name")
             .all();
         const teamsByLeague = db.prepare(
-            "SELECT id, name FROM teams WHERE league_id = ? ORDER BY name COLLATE NOCASE",
+            "SELECT id, name FROM teams WHERE league_id = ?",
         );
 
         return NextResponse.json({
             leagues: leagues.map((league) => ({
                 ...league,
-                teams: teamsByLeague.all(league.id),
+                teams: sortByName(teamsByLeague.all(league.id)),
             })),
         });
     } catch (err) {

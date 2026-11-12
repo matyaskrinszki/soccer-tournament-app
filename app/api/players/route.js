@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDatabase } from "../../../lib/database";
 import { jsonError } from "../../../lib/api";
+import { sortByName } from "../../../lib/sort";
 
 export async function GET(request) {
     try {
@@ -9,10 +10,10 @@ export async function GET(request) {
                 `SELECT p.id, p.name, t.id as teamId, t.name as teamName, l.name as leagueName
                  FROM players p
                  LEFT JOIN teams t ON t.id = p.team_id
-                 LEFT JOIN leagues l ON l.id = t.league_id
-                 ORDER BY p.name COLLATE NOCASE ASC`,
+                 LEFT JOIN leagues l ON l.id = t.league_id`,
             )
             .all();
+        sortByName(rows);
 
         const players = rows.map((row) => ({
             id: row.id,

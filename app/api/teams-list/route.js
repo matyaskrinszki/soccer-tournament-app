@@ -3,6 +3,7 @@ import { getDatabase } from "../../../lib/database";
 import { jsonError } from "../../../lib/api";
 import { listDisplaySeasons } from "../../../lib/seasons";
 import { getSeasonStandings } from "../../../lib/standings";
+import { sortByName } from "../../../lib/sort";
 
 /**
  * Every team with its league and captain. `stats` is the team's table row in the
@@ -19,10 +20,10 @@ export async function GET() {
                         p.name as captainName
                  FROM teams t
                  JOIN leagues l ON l.id = t.league_id
-                 LEFT JOIN players p ON p.id = t.captain_player_id
-                 ORDER BY t.name COLLATE NOCASE ASC`,
+                 LEFT JOIN players p ON p.id = t.captain_player_id`,
             )
             .all();
+        sortByName(rows);
 
         const [season = null] = listDisplaySeasons(db);
         const statsByTeam = new Map(

@@ -158,6 +158,19 @@ describe("registration listings", () => {
             ],
         );
     });
+
+    it("sorts names with an accented capital in Hungarian order, not after Z", () => {
+        db.exec(`
+            INSERT INTO teams (id, name, league_id) VALUES
+                (4, 'Zulu', 'a-league'),
+                (5, 'Építész', 'a-league');
+        `);
+
+        assert.deepEqual(
+            listSeasonTeams(db, 1).map((t) => t.name),
+            ["Alpha", "Bravo", "Építész", "Zulu", "Charlie"],
+        );
+    });
 });
 
 describe("closeRegistration", () => {
