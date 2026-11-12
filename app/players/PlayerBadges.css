@@ -1,0 +1,47 @@
+/* Badge card, shared by the public and the own profile */
+.badge-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+    gap: 0.75rem;
+}
+
+.badge-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding: 0.8rem 1rem;
+    border: 1px solid #D8C4B6;
+    border-radius: 10px;
+    background: #F5EFE7;
+}
+
+.badge-item.hidden-badge {
+    opacity: 0.6;
+}
+
+.badge-name {
+    font-weight: 700;
+    color: #213555;
+}
+
+.badge-desc {
+    font-size: 0.9rem;
+    color: #3E5879;
+}
+
+.badge-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    color: #213555;
+    margin-top: 0.2rem;
+}
+
+.badge-error {
+    color: #d32f2f;
+    margin: 0.75rem 0 0 0;
+}

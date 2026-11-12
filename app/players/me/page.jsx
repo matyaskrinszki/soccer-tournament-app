@@ -7,6 +7,7 @@ import { getAuthHeaders } from '../../../lib/client-auth';
 import { useAuth } from '../../components/AuthContext';
 import CalendarExport from '../../components/CalendarExport';
 import PlayerStats from '../PlayerStats';
+import PlayerBadges from '../PlayerBadges';
 
 export default function PlayerMePage() {
     const { isHydrated, isLoggedIn, playerId, updateEmail, openAuthModal } = useAuth();
@@ -320,6 +321,7 @@ export default function PlayerMePage() {
                             {player.team && <CalendarExport teamId={player.team.id} />}
                         </section>
 
+                        <PlayerBadges playerId={player.id} badges={player.allBadges} editable />
                         <PlayerStats stats={player.stats} team={player.team} />
 
                         <section className="player-card">

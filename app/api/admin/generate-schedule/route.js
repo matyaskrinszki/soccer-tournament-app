@@ -367,7 +367,7 @@ export async function POST(request) {
                         leagueId: innerErr.leagueId,
                         conflicts: innerErr.conflicts,
                     },
-                    { status: 400 },
+                    { status: 500 },
                 );
             }
 
@@ -380,7 +380,7 @@ export async function POST(request) {
                         maxUnavailable: innerErr.maxUnavailable,
                         issues: innerErr.issues,
                     },
-                    { status: 400 },
+                    { status: 422 },
                 );
             }
 

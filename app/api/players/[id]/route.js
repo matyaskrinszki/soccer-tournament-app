@@ -5,6 +5,7 @@ import { jsonError, serverError } from "../../../../lib/api";
 import { validateAuth } from "../../../../lib/validation";
 import { getUserFromRequest, getPlayerById, requireAuth, canAccessPlayerResource } from "../../../../lib/auth";
 import { getPlayerStats } from "../../../../lib/player-stats";
+import { getPlayerBadges } from "../../../../lib/badges";
 
 export async function GET(request, context) {
     const { id } = await context.params;
@@ -45,6 +46,15 @@ export async function GET(request, context) {
             return jsonError(statsResult.status, statsResult.error);
         }
 
+        failMessage = "Hiba történt a kitűzők lekérdezésekor";
+        const badgesResult = getPlayerBadges(db, row.id);
+        if (!badgesResult.ok) {
+            return jsonError(badgesResult.status, badgesResult.error);
+        }
+        // Everyone gets the badges shown on the public profile; only the player
+        // themself gets the hidden ones too, with the setting
+        const isSelf = user != null && user.playerId === row.id;
+
         return NextResponse.json(
             {
                 player: {
@@ -54,6 +64,10 @@ export async function GET(request, context) {
                     team: row.teamId ? { id: row.teamId, name: row.teamName, leagueName: row.leagueName } : null,
                     goals: statsResult.stats.totalGoals,
                     stats: statsResult.stats,
+                    badges: badgesResult.badges
+                        .filter((badge) => badge.visible)
+                        .map(({ visible, ...badge }) => badge),
+                    allBadges: isSelf ? badgesResult.badges : null,
                 },
             },
             { status: 200 },

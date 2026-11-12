@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import './player.css';
 import PlayerStats from '../PlayerStats';
+import PlayerBadges from '../PlayerBadges';
 
 export default function PlayerPage() {
     const params = useParams();
@@ -81,6 +82,7 @@ export default function PlayerPage() {
                             <p><strong>Játékos ID:</strong> {player.id}</p>
                         </div>
                     </section>
+                    <PlayerBadges badges={player.badges} />
                     <PlayerStats stats={player.stats} team={player.team} />
                     </>
                 )}
