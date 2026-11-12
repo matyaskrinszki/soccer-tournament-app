@@ -4,6 +4,7 @@ import { getDatabase } from "../../../../lib/database";
 import { jsonError, serverError } from "../../../../lib/api";
 import { validateAuth } from "../../../../lib/validation";
 import { getUserFromRequest, getPlayerById, requireAuth, canAccessPlayerResource } from "../../../../lib/auth";
+import { getPlayerStats } from "../../../../lib/player-stats";
 
 export async function GET(request, context) {
     const { id } = await context.params;
@@ -38,10 +39,11 @@ export async function GET(request, context) {
 
         const protectedEmail = canAccessPlayerResource(user, parseInt(id)) ? row.email : null;
 
-        failMessage = "Hiba történt a gólok lekérdezésekor";
-        const goalRow = db
-            .prepare("SELECT COUNT(*) as goals FROM goals WHERE player_id = ?")
-            .get(id);
+        failMessage = "Hiba történt a statisztikák lekérdezésekor";
+        const statsResult = getPlayerStats(db, row.id);
+        if (!statsResult.ok) {
+            return jsonError(statsResult.status, statsResult.error);
+        }
 
         return NextResponse.json(
             {
@@ -50,7 +52,8 @@ export async function GET(request, context) {
                     name: row.name,
                     email: protectedEmail,
                     team: row.teamId ? { id: row.teamId, name: row.teamName, leagueName: row.leagueName } : null,
-                    goals: goalRow?.goals ?? 0,
+                    goals: statsResult.stats.totalGoals,
+                    stats: statsResult.stats,
                 },
             },
             { status: 200 },

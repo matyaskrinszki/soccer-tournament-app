@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import './player.css';
+import PlayerStats from '../PlayerStats';
 
 export default function PlayerPage() {
     const params = useParams();
@@ -57,6 +58,7 @@ export default function PlayerPage() {
                 )}
 
                 {player && !loading && !error && (
+                    <>
                     <section className="player-card">
                         <div className="player-header">
                             <div>
@@ -79,6 +81,8 @@ export default function PlayerPage() {
                             <p><strong>Játékos ID:</strong> {player.id}</p>
                         </div>
                     </section>
+                    <PlayerStats stats={player.stats} team={player.team} />
+                    </>
                 )}
             </main>
         </div>

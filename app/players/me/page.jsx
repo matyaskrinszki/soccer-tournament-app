@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { getAuthHeaders } from '../../../lib/client-auth';
 import { useAuth } from '../../components/AuthContext';
 import CalendarExport from '../../components/CalendarExport';
+import PlayerStats from '../PlayerStats';
 
 export default function PlayerMePage() {
     const { isHydrated, isLoggedIn, playerId, updateEmail, openAuthModal } = useAuth();
@@ -301,6 +302,10 @@ export default function PlayerMePage() {
                                 <div>
                                     <h1>Saját profil</h1>
                                 </div>
+                                <div className="stat-pill">
+                                    <span>Gólok</span>
+                                    <strong>{player.stats?.totalGoals ?? 0}</strong>
+                                </div>
                             </div>
 
                             <div className="player-meta">
@@ -314,6 +319,8 @@ export default function PlayerMePage() {
 
                             {player.team && <CalendarExport teamId={player.team.id} />}
                         </section>
+
+                        <PlayerStats stats={player.stats} team={player.team} />
 
                         <section className="player-card">
                             <h2>Profil módosítása</h2>

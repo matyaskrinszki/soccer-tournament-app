@@ -1,0 +1,87 @@
+/* Player statistics cards, shared by the public and the own profile */
+.player-card h2 {
+    margin: 0 0 0.75rem 0;
+    color: #213555;
+}
+
+.player-card .muted {
+    color: #3E5879;
+    opacity: 0.85;
+}
+
+.player-stats-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.player-stats-table th,
+.player-stats-table td {
+    padding: 0.55rem 0.75rem;
+    border-bottom: 1px solid #D8C4B6;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.player-stats-table th {
+    color: #3E5879;
+    font-size: 0.9rem;
+}
+
+.player-stats-table .num {
+    text-align: right;
+}
+
+.player-match-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.player-match-row {
+    display: grid;
+    grid-template-columns: 9rem 1fr auto;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.7rem 1rem;
+    border: 1px solid #D8C4B6;
+    border-radius: 10px;
+    background: #F5EFE7;
+    color: #213555;
+    text-decoration: none;
+}
+
+.player-match-row:hover {
+    box-shadow: 0 8px 16px rgba(33, 53, 85, 0.08);
+}
+
+.player-match-date {
+    font-weight: 700;
+}
+
+.player-match-result {
+    font-weight: 700;
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+}
+
+.player-match-goals {
+    font-weight: 600;
+    font-size: 0.9rem;
+    background: #ffffff;
+    border: 1px solid #D8C4B6;
+    border-radius: 999px;
+    padding: 0.1rem 0.5rem;
+}
+
+@media (max-width: 600px) {
+    .player-match-row {
+        grid-template-columns: 1fr auto;
+    }
+
+    .player-match-date {
+        grid-column: 1 / -1;
+        font-size: 0.9rem;
+    }
+}
