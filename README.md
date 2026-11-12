@@ -1,36 +1,94 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Soccer Tournament App
 
-## Getting Started
+A web app for organising and following a university football league, built around an
+automatic match scheduler (BSc thesis project, ELTE IK). The user interface is in Hungarian.
 
-First, run the development server:
+Built with Next.js 16 (App Router), React 19, plain JavaScript and SQLite (better-sqlite3).
+
+## Requirements
+
+- **Node.js 22 or newer** (required by better-sqlite3 13; developed and tested on Node 24)
+- npm (comes with Node.js)
+
+better-sqlite3 ships prebuilt binaries for current Node versions on Windows, macOS and Linux,
+so normally no compiler is needed.
+
+## Setup
+
+1. Install the dependencies:
+
+   ```bash
+   npm install
+   ```
+
+2. Create `.env.local` from the example file and set `JWT_SECRET` (used to sign login
+   tokens; the app refuses to start without it):
+
+   ```bash
+   cp .env.example .env.local
+   ```
+
+   Generate a random secret and paste it after `JWT_SECRET=`:
+
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+   ```
+
+## Running
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open <http://localhost:3000>.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+On the first start the app creates the SQLite database at `data/tournament.db`, runs the
+schema migrations (`lib/migrations/`) and fills the empty database with sample data:
+four leagues (Liga I–IV) with six teams each, players, an admin, and a completed sample
+season with results. Later starts only apply new migrations; existing data is kept.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Starting over:** stop the server, delete `data/tournament.db` and start it again.
 
-## Learn More
+Production build:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run build
+npm start
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Tests and lint
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm test
+```
 
-## Deploy on Vercel
+Runs the unit tests in `tests/*.test.mjs` with the built-in Node test runner (`node:test`),
+using in-memory databases where needed; the dev database is not touched.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+npm run lint
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Test logins
+
+Every seeded account can log in. The data is generated from a fixed seed, so a fresh
+database always has the same names and results.
+
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | `admin@example.com` | `Admin1Password` |
+| Players in teams | `player1@example.com` … `player168@example.com` | `Player1Password` |
+| Players without a team | `teamless1@example.com` … `teamless20@example.com` | `Player1Password` |
+
+Each team has 7 players; the first player of each team is its captain, i.e.
+`player1`, `player8`, `player15`, … (every 7th number starting from 1). Teams are numbered
+in tier order: players 1–42 are in Liga I, 43–84 in Liga II, 85–126 in Liga III and
+127–168 in Liga IV.
+
+## Project structure
+
+- `app/` — pages and API routes (`app/api/**/route.js`)
+- `lib/` — application logic (scheduler, seasons, results, standings, statistics, badges),
+  database access and migrations
+- `tests/` — unit tests
+- `instrumentation.js` — runs the migrations and the seeding when the server starts
