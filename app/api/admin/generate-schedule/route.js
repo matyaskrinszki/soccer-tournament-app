@@ -149,8 +149,9 @@ export async function POST(request) {
              WHERE season_id = ? AND league_id = ?`,
         );
         const insertRun = db.prepare(
-            `INSERT INTO schedule_runs (season_id, league_id, algorithm_score, status)
-             VALUES (?, ?, ?, 'current')`,
+            `INSERT INTO schedule_runs
+             (season_id, league_id, algorithm_score, preferred_sides, unavailable_sides, total_sides, status)
+             VALUES (?, ?, NULL, ?, ?, ?, 'current')`,
         );
         const insertMatch = db.prepare(
             `INSERT INTO scheduled_matches
@@ -293,19 +294,23 @@ export async function POST(request) {
                 archiveRuns.run(seasonId, leagueId);
 
                 const scheduleRunId = Number(
-                    insertRun.run(seasonId, leagueId, result.satisfactionScore)
-                        .lastInsertRowid,
+                    insertRun.run(
+                        seasonId,
+                        leagueId,
+                        result.preferredSides,
+                        result.unavailableSides,
+                        result.totalSides,
+                    ).lastInsertRowid,
                 );
 
-                for (let index = 0; index < result.schedule.length; index++) {
-                    const match = result.schedule[index];
+                for (const match of result.schedule) {
                     insertMatch.run(
                         scheduleRunId,
                         match.homeTeamId,
                         match.awayTeamId,
                         match.timeSlotId,
                         match.pitchId,
-                        index + 1,
+                        match.roundNumber,
                     );
                 }
 
@@ -313,7 +318,9 @@ export async function POST(request) {
                     leagueId,
                     scheduleRunId,
                     matchCount: result.scheduledMatchCount,
-                    satisfactionScore: result.satisfactionScore,
+                    preferredSides: result.preferredSides,
+                    unavailableSides: result.unavailableSides,
+                    totalSides: result.totalSides,
                 });
             }
 
@@ -424,7 +431,9 @@ export async function GET(request) {
                     sr.season_id as seasonId,
                     sr.league_id as leagueId,
                     sr.generated_at as generatedAt,
-                    sr.algorithm_score as algorithmScore,
+                    sr.preferred_sides as preferredSides,
+                    sr.unavailable_sides as unavailableSides,
+                    sr.total_sides as totalSides,
                     sr.status,
                     l.name as leagueName,
                     l.country as leagueCountry

@@ -176,7 +176,11 @@ function SchedulePageContent() {
                                                     {league.leagueName ?? league.leagueId}
                                                 </span>
                                                 <span className="league-score-value">
-                                                    {league.matches.length} mérkőzés · elégedettség {league.algorithmScore}%
+                                                    {league.matches.length} mérkőzés ·{' '}
+                                                    {/* Runs from before the counts existed have none */}
+                                                    {league.totalSides == null
+                                                        ? 'kedvelt időpont: – · kerülendő időpont: –'
+                                                        : `kedvelt időpont: ${league.preferredSides} / ${league.totalSides} · kerülendő időpont: ${league.unavailableSides}`}
                                                 </span>
                                             </div>
                                         ))}

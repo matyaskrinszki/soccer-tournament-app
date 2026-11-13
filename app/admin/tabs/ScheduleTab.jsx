@@ -150,7 +150,8 @@ export default function ScheduleTab({ season, onSeasonUpdated, notify }) {
                                 <tr>
                                     <th>Generálva</th>
                                     <th>Liga</th>
-                                    <th>Elégedettség %</th>
+                                    <th>Kedvelt időpont</th>
+                                    <th>Kerülendő időpont</th>
                                     <th>Állapot</th>
                                 </tr>
                             </thead>
@@ -159,7 +160,15 @@ export default function ScheduleTab({ season, onSeasonUpdated, notify }) {
                                     <tr key={schedule.id}>
                                         <td>{new Date(schedule.generatedAt).toLocaleString('hu-HU')}</td>
                                         <td>{schedule.leagueName || schedule.leagueId || '-'}</td>
-                                        <td>{schedule.algorithmScore}%</td>
+                                        {/* Runs from before the counts existed have none */}
+                                        <td>
+                                            {schedule.totalSides == null
+                                                ? '–'
+                                                : `${schedule.preferredSides} / ${schedule.totalSides}`}
+                                        </td>
+                                        <td>
+                                            {schedule.totalSides == null ? '–' : schedule.unavailableSides}
+                                        </td>
                                         <td>{schedule.status === 'current' ? '✓ Aktív' : 'Archiválva'}</td>
                                     </tr>
                                 ))}

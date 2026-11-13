@@ -52,7 +52,9 @@ export async function GET(request) {
                         sr.league_id AS leagueId,
                         l.name AS leagueName,
                         l.country AS leagueCountry,
-                        sr.algorithm_score AS algorithmScore,
+                        sr.preferred_sides AS preferredSides,
+                        sr.unavailable_sides AS unavailableSides,
+                        sr.total_sides AS totalSides,
                         sr.generated_at AS generatedAt
                  FROM schedule_runs sr
                  LEFT JOIN leagues l ON l.id = sr.league_id

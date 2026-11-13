@@ -293,7 +293,7 @@ describe("generateSchedule", () => {
             assert.equal(result.matchCount, 6);
             assert.equal(result.scheduledMatchCount, 0);
             assert.deepEqual(result.schedule, []);
-            assert.equal(result.satisfactionScore, 0);
+            assert.equal(result.totalSides, 0);
         });
 
         it("scenario E: enough slots, but all at the same time, finds no valid assignment", () => {
@@ -323,10 +323,23 @@ describe("generateSchedule", () => {
         });
     });
 
-    describe("satisfaction score", () => {
+    describe("preference counts", () => {
         const teamIds = [1, 2, 3, 4];
 
-        it("is 100 when every slot is preferred by every team", () => {
+        // Recounts the sides from the schedule, independently of the scheduler
+        function countSidesIn(schedule, teamPreferences, preference) {
+            let count = 0;
+            for (const match of schedule) {
+                for (const teamId of [match.homeTeamId, match.awayTeamId]) {
+                    if (teamPreferences.get(teamId)?.get(match.timeSlotId) === preference) {
+                        count++;
+                    }
+                }
+            }
+            return count;
+        }
+
+        it("counts every side as preferred when every slot is preferred by every team", () => {
             const slots = buildSlots(SCENARIO_A_LAYOUT);
             const result = generateSchedule({
                 teamIds,
@@ -334,32 +347,37 @@ describe("generateSchedule", () => {
                 teamPreferences: uniformPreferences(teamIds, slots, "preferred"),
             });
             assert.equal(result.success, true);
-            assert.equal(result.satisfactionScore, 100);
+            assert.equal(result.preferredSides, 12);
+            assert.equal(result.unavailableSides, 0);
+            assert.equal(result.totalSides, 12);
         });
 
-        it("is 0 when every slot is unavailable for every team", () => {
+        it("still schedules when every slot is unavailable for every team (soft rule)", () => {
             const slots = buildSlots(SCENARIO_A_LAYOUT);
             const result = generateSchedule({
                 teamIds,
                 timeSlots: slots,
                 teamPreferences: uniformPreferences(teamIds, slots, "unavailable"),
             });
-            // Current behaviour: "unavailable" is only a penalty, so this still succeeds
             assert.equal(result.success, true);
-            assert.equal(result.satisfactionScore, 0);
+            assert.equal(result.preferredSides, 0);
+            assert.equal(result.unavailableSides, 12);
+            assert.equal(result.totalSides, 12);
         });
 
-        it("is 33 with no preferences (neutral sits at 50/150 of the -50..100 range)", () => {
+        it("counts nothing with no preferences", () => {
             const slots = buildSlots(SCENARIO_A_LAYOUT);
             const result = generateSchedule({
                 teamIds,
                 timeSlots: slots,
                 teamPreferences: new Map(),
             });
-            assert.equal(result.satisfactionScore, 33);
+            assert.equal(result.preferredSides, 0);
+            assert.equal(result.unavailableSides, 0);
+            assert.equal(result.totalSides, 12);
         });
 
-        it("stays an integer within 0..100 for mixed preferences", () => {
+        it("matches a recount from the schedule for mixed preferences", () => {
             const slots = buildSlots(SCENARIO_A_LAYOUT, ["2026-03-02", "2026-03-03"]);
             const choices = ["preferred", "neutral", "unavailable"];
             const teamPreferences = new Map(
@@ -376,11 +394,20 @@ describe("generateSchedule", () => {
 
             const result = generateSchedule({ teamIds, timeSlots: slots, teamPreferences });
             assert.equal(result.success, true);
-            assert.ok(Number.isInteger(result.satisfactionScore));
-            assert.ok(result.satisfactionScore >= 0 && result.satisfactionScore <= 100);
+            assert.equal(
+                result.preferredSides,
+                countSidesIn(result.schedule, teamPreferences, "preferred"),
+            );
+            assert.equal(
+                result.unavailableSides,
+                countSidesIn(result.schedule, teamPreferences, "unavailable"),
+            );
+            assert.equal(result.totalSides, 2 * result.schedule.length);
         });
 
-        it("scenario B: preferences raise the score above the no-preference baseline", () => {
+        it("scenario B: uses an unavailable slot only where it can't be avoided", () => {
+            // All 6 slots are needed and both 17:00 pitches hold all 4 teams,
+            // so team 4 must play once at 17:00; never twice
             const slots = buildSlots(SCENARIO_A_LAYOUT);
             const teamPreferences = new Map([
                 [3, new Map([[3, "preferred"]])], // slot 3 = 18:00
@@ -389,7 +416,7 @@ describe("generateSchedule", () => {
             const result = generateSchedule({ teamIds, timeSlots: slots, teamPreferences });
 
             assert.equal(result.success, true);
-            assert.ok(result.satisfactionScore > 33);
+            assert.equal(result.unavailableSides, 1);
         });
     });
 
@@ -502,9 +529,10 @@ describe("generateSchedule", () => {
             assert.equal(sameWeek.reason, "not-enough-weeks");
             assert.equal(sameWeek.weekCount, 1);
 
-            // Sunday and the next Monday: two weeks
+            // Sunday and the next Monday: two weeks (3 teams need 3 rounds, so still too few)
             const twoWeeks = run(["2026-03-08", "2026-03-09"]);
-            assert.notEqual(twoWeeks.reason, "not-enough-weeks");
+            assert.equal(twoWeeks.reason, "not-enough-weeks");
+            assert.equal(twoWeeks.weekCount, 2);
         });
 
         it("ignores the cap for slots without a date", () => {
@@ -540,7 +568,7 @@ describe("generateSchedule", () => {
             assert.equal(result.reason, "search-limit-reached");
             assert.equal(result.searchSteps, 3);
             assert.deepEqual(result.schedule, []);
-            assert.equal(result.satisfactionScore, 0);
+            assert.equal(result.totalSides, 0);
         });
 
         it("stops an infeasible search that would otherwise run for a very long time", () => {
@@ -578,29 +606,237 @@ describe("generateSchedule", () => {
         });
     });
 
-    // Known gap, fixed in step 6 ("unavailable" as a hard rule). Marked todo so it
-    // reports without failing the run; remove { todo } once the fix lands.
-    it(
-        "scenario B: never schedules a team in a slot it marked unavailable",
-        { todo: "unavailable is only a -50 penalty today" },
-        () => {
-            const slots = buildSlots(SCENARIO_A_LAYOUT);
+    describe("rounds into weeks (circle method)", () => {
+        const fiveMondays = ["2026-03-02", "2026-03-09", "2026-03-16", "2026-03-23", "2026-03-30"];
+
+        function addDays(date, days) {
+            const d = new Date(`${date}T00:00:00Z`);
+            d.setUTCDate(d.getUTCDate() + days);
+            return d.toISOString().slice(0, 10);
+        }
+
+        // Week (its Monday) of each scheduled match; the tests use Monday-based dates
+        function mondayOf(date) {
+            const d = new Date(`${date}T00:00:00Z`);
+            d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+            return d.toISOString().slice(0, 10);
+        }
+
+        function weeksOfRounds(schedule, slots) {
+            const slotById = new Map(slots.map((s) => [s.id, s]));
+            const weeks = new Map(); // Map<roundNumber, Set<week>>
+            for (const match of schedule) {
+                const week = mondayOf(slotById.get(match.timeSlotId).slotDate);
+                if (!weeks.has(match.roundNumber)) weeks.set(match.roundNumber, new Set());
+                weeks.get(match.roundNumber).add(week);
+            }
+            return weeks;
+        }
+
+        it("Matt's bug: 6 teams in exactly 5 weeks with many free slots on 2 pitches", () => {
+            // Monday and Wednesday, 2 times, 2 pitches: 40 slots for 15 matches.
+            // The old pair-by-pair search hit the 20,000-step limit on this input.
+            const teamIds = [1, 2, 3, 4, 5, 6];
+            const slots = buildSlots(
+                { "17:00": 2, "18:00": 2 },
+                fiveMondays.flatMap((monday) => [monday, addDays(monday, 2)]),
+            );
+            const result = generateSchedule({
+                teamIds,
+                timeSlots: slots,
+                teamPreferences: new Map(),
+                maxMatchesPerTeamPerWeek: 1,
+            });
+
+            assert.equal(result.success, true);
+            assert.ok(result.searchSteps < 100, `${result.searchSteps} steps`);
+            assert.deepEqual(
+                validateSchedule(result.schedule, slots, {
+                    teamIds,
+                    maxMatchesPerTeamPerWeek: 1,
+                }),
+                { isValid: true, conflicts: [] },
+            );
+        });
+
+        it("5 teams need 5 weeks (5 rounds with a bye): 5 succeed, 4 are too few", () => {
+            const run = (dates) =>
+                generateSchedule({
+                    teamIds: [1, 2, 3, 4, 5],
+                    timeSlots: buildSlots({ "17:00": 2, "18:00": 1 }, dates),
+                    teamPreferences: new Map(),
+                    maxMatchesPerTeamPerWeek: 1,
+                });
+
+            const fiveWeeks = run(fiveMondays);
+            assert.equal(fiveWeeks.success, true);
+            assertRoundRobinComplete(fiveWeeks.schedule, [1, 2, 3, 4, 5]);
+
+            // 12 slots for 10 matches, so only the week count is the problem
+            const fourWeeks = run(fiveMondays.slice(0, 4));
+            assert.equal(fourWeeks.success, false);
+            assert.equal(fourWeeks.reason, "not-enough-weeks");
+            assert.equal(fourWeeks.weekCount, 4);
+            assert.equal(fourWeeks.requiredWeeks, 5);
+        });
+
+        it("a slot preferred by one team and unavailable for the other loses to a neutral slot", () => {
+            // Slot 1 = 17:00 (team 1 preferred, team 2 unavailable), slot 2 = 18:00 (neutral).
+            // The old score (+100 - 50 = +50 > 0) picked slot 1.
+            const slots = buildSlots({ "17:00": 1, "18:00": 1 });
             const teamPreferences = new Map([
-                [4, new Map([[1, "unavailable"], [2, "unavailable"]])],
+                [1, new Map([[1, "preferred"]])],
+                [2, new Map([[1, "unavailable"]])],
             ]);
             const result = generateSchedule({
-                teamIds: [1, 2, 3, 4],
+                teamIds: [1, 2],
                 timeSlots: slots,
                 teamPreferences,
             });
 
-            for (const match of result.schedule) {
-                if (match.homeTeamId === 4 || match.awayTeamId === 4) {
-                    assert.ok(![1, 2].includes(match.timeSlotId));
-                }
+            assert.equal(result.success, true);
+            assert.equal(result.schedule[0].timeSlotId, 2);
+            assert.equal(result.preferredSides, 0);
+            assert.equal(result.unavailableSides, 0);
+        });
+
+        it("still uses an unavailable slot when it is the only one (soft rule)", () => {
+            const slots = buildSlots({ "17:00": 1 });
+            const result = generateSchedule({
+                teamIds: [1, 2],
+                timeSlots: slots,
+                teamPreferences: new Map([[2, new Map([[1, "unavailable"]])]]),
+            });
+
+            assert.equal(result.success, true);
+            assert.equal(result.schedule[0].timeSlotId, 1);
+            assert.equal(result.unavailableSides, 1);
+            assert.equal(result.totalSides, 2);
+        });
+
+        it("cap 2: a week holds 2 rounds", () => {
+            // 4 teams = 3 rounds; one evening per week with 2 times x 2 pitches
+            const teamIds = [1, 2, 3, 4];
+            const slots = buildSlots({ "17:00": 2, "18:00": 2 }, fiveMondays.slice(0, 2));
+            const result = generateSchedule({
+                teamIds,
+                timeSlots: slots,
+                teamPreferences: new Map(),
+                maxMatchesPerTeamPerWeek: 2,
+            });
+
+            assert.equal(result.success, true);
+            const weeks = weeksOfRounds(result.schedule, slots);
+            assert.deepEqual([...weeks.get(1)], ["2026-03-02"]);
+            assert.deepEqual([...weeks.get(2)], ["2026-03-02"]);
+            assert.deepEqual([...weeks.get(3)], ["2026-03-09"]);
+            assert.equal(
+                validateSchedule(result.schedule, slots, {
+                    teamIds,
+                    maxMatchesPerTeamPerWeek: 2,
+                }).isValid,
+                true,
+            );
+        });
+
+        it("cap 2: one week is too few for 3 rounds", () => {
+            const result = generateSchedule({
+                teamIds: [1, 2, 3, 4],
+                timeSlots: buildSlots({ "17:00": 2, "18:00": 2, "19:00": 2 }),
+                teamPreferences: new Map(),
+                maxMatchesPerTeamPerWeek: 2,
+            });
+            assert.equal(result.reason, "not-enough-weeks");
+            assert.equal(result.requiredWeeks, 2);
+        });
+
+        it("roundNumber is the circle-method round, one week per round, non-decreasing by week", () => {
+            // 7 teams = 7 rounds of 3 matches; 8 weeks, so one week is left over
+            const teamIds = [1, 2, 3, 4, 5, 6, 7];
+            const mondays = Array.from({ length: 8 }, (_, i) => addDays("2026-03-02", 7 * i));
+            const slots = buildSlots({ "17:00": 2, "18:00": 2 }, mondays);
+            const result = generateSchedule({
+                teamIds,
+                timeSlots: slots,
+                teamPreferences: new Map(),
+                maxMatchesPerTeamPerWeek: 1,
+            });
+            assert.equal(result.success, true);
+
+            // Each round is the matching buildRounds round
+            const rounds = buildRounds(teamIds);
+            for (let r = 0; r < rounds.length; r++) {
+                const scheduled = result.schedule
+                    .filter((m) => m.roundNumber === r + 1)
+                    .map((m) => pairKey(m.homeTeamId, m.awayTeamId))
+                    .sort();
+                const expected = rounds[r].map(([a, b]) => pairKey(a, b)).sort();
+                assert.deepEqual(scheduled, expected, `round ${r + 1}`);
             }
-        },
-    );
+
+            // Every round in one week, and later rounds never in earlier weeks
+            const weeks = weeksOfRounds(result.schedule, slots);
+            let previousWeek = "";
+            for (let round = 1; round <= rounds.length; round++) {
+                assert.equal(weeks.get(round).size, 1, `round ${round} spans weeks`);
+                const [week] = weeks.get(round);
+                assert.ok(week >= previousWeek, `round ${round} before round ${round - 1}`);
+                previousWeek = week;
+            }
+        });
+
+        it("gives a roundNumber without weeks too (undated slots)", () => {
+            const weekly = [0, 1, 2].map((dayOfWeek) => ({
+                id: dayOfWeek + 1,
+                pitchId: 1,
+                slotDate: null,
+                dayOfWeek,
+                startTime: "17:00",
+                endTime: "",
+            }));
+            const result = generateSchedule({
+                teamIds: [1, 2, 3],
+                timeSlots: weekly,
+                teamPreferences: new Map(),
+                maxMatchesPerTeamPerWeek: 1,
+            });
+            assert.equal(result.success, true);
+            assert.deepEqual(
+                result.schedule.map((m) => m.roundNumber).sort(),
+                [1, 2, 3],
+            );
+        });
+
+        it("mixed dated and undated slots: no weeks, but the cap still holds on dated slots", () => {
+            // Two dated slots in one week, two undated: with cap 1 only one
+            // match fits in the dated week (3 teams), the other two go undated
+            const slots = [
+                { id: 1, pitchId: 1, slotDate: "2026-03-02", dayOfWeek: 0, startTime: "17:00", endTime: "" },
+                { id: 2, pitchId: 1, slotDate: "2026-03-02", dayOfWeek: 0, startTime: "18:00", endTime: "" },
+                { id: 3, pitchId: 1, slotDate: null, dayOfWeek: 1, startTime: "17:00", endTime: "" },
+                { id: 4, pitchId: 1, slotDate: null, dayOfWeek: 2, startTime: "17:00", endTime: "" },
+            ];
+            const result = generateSchedule({
+                teamIds: [1, 2, 3],
+                timeSlots: slots,
+                teamPreferences: new Map(),
+                maxMatchesPerTeamPerWeek: 1,
+            });
+
+            assert.equal(result.success, true);
+            assert.equal(
+                result.schedule.filter((m) => m.timeSlotId <= 2).length,
+                1,
+            );
+            assert.equal(
+                validateSchedule(result.schedule, slots, {
+                    teamIds: [1, 2, 3],
+                    maxMatchesPerTeamPerWeek: 1,
+                }).isValid,
+                true,
+            );
+        });
+    });
 });
 
 describe("validateSchedule", () => {
