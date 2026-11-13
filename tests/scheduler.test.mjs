@@ -4,6 +4,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
+    buildRounds,
     generateSchedule,
     validateSchedule,
     DEFAULT_MAX_SEARCH_STEPS,
@@ -63,6 +64,80 @@ function assertRoundRobinComplete(schedule, teamIds) {
 
 // Scenario A from the playground: needs backtracking to succeed
 const SCENARIO_A_LAYOUT = { "17:00": 2, "18:00": 1, "19:00": 1, "20:00": 2 };
+
+describe("buildRounds", () => {
+    for (const teamCount of [2, 3, 4, 5, 6, 7, 8]) {
+        const teamIds = Array.from({ length: teamCount }, (_, i) => i + 1);
+        const rounds = buildRounds(teamIds);
+        const isOdd = teamCount % 2 === 1;
+
+        describe(`${teamCount} teams`, () => {
+            it(`returns ${isOdd ? "n" : "n-1"} rounds`, () => {
+                assert.equal(rounds.length, isOdd ? teamCount : teamCount - 1);
+            });
+
+            it("schedules every pair exactly once", () => {
+                assertRoundRobinComplete(
+                    rounds.flat().map(([homeTeamId, awayTeamId]) => ({
+                        homeTeamId,
+                        awayTeamId,
+                    })),
+                    teamIds,
+                );
+            });
+
+            it("puts each team in a round at most once", () => {
+                for (const round of rounds) {
+                    const teams = round.flat();
+                    assert.equal(new Set(teams).size, teams.length);
+                    assert.equal(round.length, Math.floor(teamCount / 2));
+                }
+            });
+
+            if (isOdd) {
+                it("lets each team sit out exactly once", () => {
+                    const sitOuts = new Map(teamIds.map((id) => [id, 0]));
+                    for (const round of rounds) {
+                        const playing = new Set(round.flat());
+                        for (const id of teamIds) {
+                            if (!playing.has(id)) sitOuts.set(id, sitOuts.get(id) + 1);
+                        }
+                    }
+                    for (const [id, count] of sitOuts) {
+                        assert.equal(count, 1, `team ${id} sits out ${count} times`);
+                    }
+                });
+            }
+        });
+    }
+
+    it("orders teams by id, whatever the input order", () => {
+        assert.deepEqual(buildRounds([30, 10, 20, 40]), buildRounds([10, 20, 30, 40]));
+    });
+
+    it("gives the textbook circle-method rounds for 4 teams", () => {
+        assert.deepEqual(buildRounds([1, 2, 3, 4]), [
+            [[1, 4], [2, 3]],
+            [[1, 3], [4, 2]],
+            [[1, 2], [3, 4]],
+        ]);
+    });
+
+    it("never pairs a team with the bye (3 teams)", () => {
+        assert.deepEqual(buildRounds([1, 2, 3]), [[[2, 3]], [[1, 3]], [[1, 2]]]);
+    });
+
+    it("does not change the input array", () => {
+        const teamIds = [3, 1, 2];
+        buildRounds(teamIds);
+        assert.deepEqual(teamIds, [3, 1, 2]);
+    });
+
+    it("returns no rounds for fewer than 2 teams", () => {
+        assert.deepEqual(buildRounds([]), []);
+        assert.deepEqual(buildRounds([1]), []);
+    });
+});
 
 describe("generateSchedule", () => {
     describe("round-robin completeness", () => {
@@ -584,5 +659,158 @@ describe("validateSchedule", () => {
         ];
         assert.equal(validateSchedule(clash, weekly).isValid, false);
         assert.equal(validateSchedule(ok, weekly).isValid, true);
+    });
+
+    describe("weekly cap", () => {
+        // Team 1 plays on Monday 03-02 and Tuesday 03-03: same week
+        const twoInOneWeek = [
+            { homeTeamId: 1, awayTeamId: 2, timeSlotId: 1, pitchId: 1 },
+            { homeTeamId: 1, awayTeamId: 3, timeSlotId: 4, pitchId: 1 },
+        ];
+
+        it("detects a team over the cap in one week", () => {
+            const result = validateSchedule(twoInOneWeek, slots, {
+                maxMatchesPerTeamPerWeek: 1,
+            });
+            assert.equal(result.isValid, false);
+            assert.equal(result.conflicts.length, 1);
+            assert.match(result.conflicts[0], /Team 1 has 2 matches in the week of 2026-03-02/);
+        });
+
+        it("accepts the same matches when the cap allows them", () => {
+            assert.equal(
+                validateSchedule(twoInOneWeek, slots, { maxMatchesPerTeamPerWeek: 2 })
+                    .isValid,
+                true,
+            );
+        });
+
+        it("has no cap by default", () => {
+            assert.equal(validateSchedule(twoInOneWeek, slots).isValid, true);
+        });
+
+        it("counts weeks Monday to Sunday", () => {
+            const sundayMonday = buildSlots({ "17:00": 1 }, ["2026-03-08", "2026-03-09"]);
+            const schedule = [
+                { homeTeamId: 1, awayTeamId: 2, timeSlotId: 1, pitchId: 1 },
+                { homeTeamId: 1, awayTeamId: 3, timeSlotId: 2, pitchId: 1 },
+            ];
+            assert.equal(
+                validateSchedule(schedule, sundayMonday, { maxMatchesPerTeamPerWeek: 1 })
+                    .isValid,
+                true,
+            );
+        });
+
+        it("ignores slots without a date", () => {
+            const weekly = [0, 1].map((dayOfWeek) => ({
+                id: dayOfWeek + 1,
+                pitchId: 1,
+                slotDate: null,
+                dayOfWeek,
+                startTime: "17:00",
+                endTime: "",
+            }));
+            const schedule = [
+                { homeTeamId: 1, awayTeamId: 2, timeSlotId: 1, pitchId: 1 },
+                { homeTeamId: 1, awayTeamId: 3, timeSlotId: 2, pitchId: 1 },
+            ];
+            assert.equal(
+                validateSchedule(schedule, weekly, { maxMatchesPerTeamPerWeek: 1 })
+                    .isValid,
+                true,
+            );
+        });
+    });
+
+    describe("every pair exactly once", () => {
+        const teamIds = [1, 2, 3];
+        // 3 teams, 3 separate times
+        const complete = [
+            { homeTeamId: 1, awayTeamId: 2, timeSlotId: 1, pitchId: 1 },
+            { homeTeamId: 1, awayTeamId: 3, timeSlotId: 3, pitchId: 1 },
+            { homeTeamId: 2, awayTeamId: 3, timeSlotId: 4, pitchId: 1 },
+        ];
+
+        it("accepts a complete round robin", () => {
+            assert.deepEqual(validateSchedule(complete, slots, { teamIds }), {
+                isValid: true,
+                conflicts: [],
+            });
+        });
+
+        it("accepts a pair in either home/away order", () => {
+            const swapped = [
+                complete[0],
+                { ...complete[1], homeTeamId: 3, awayTeamId: 1 },
+                complete[2],
+            ];
+            assert.equal(validateSchedule(swapped, slots, { teamIds }).isValid, true);
+        });
+
+        it("detects a missing pair", () => {
+            const result = validateSchedule(complete.slice(0, 2), slots, { teamIds });
+            assert.equal(result.isValid, false);
+            assert.deepEqual(result.conflicts, [
+                "Expected 3 matches, found 2",
+                "Pair 2-3 is not scheduled",
+            ]);
+        });
+
+        it("detects a pair scheduled twice (home/away swapped)", () => {
+            const twice = [
+                ...complete,
+                { homeTeamId: 2, awayTeamId: 1, timeSlotId: 6, pitchId: 1 },
+            ];
+            const result = validateSchedule(twice, slots, { teamIds });
+            assert.equal(result.isValid, false);
+            assert.deepEqual(result.conflicts, [
+                "Expected 3 matches, found 4",
+                "Pair 1-2 is scheduled 2 times",
+            ]);
+        });
+
+        it("detects a match with a team outside the league", () => {
+            const outsider = [
+                complete[0],
+                complete[1],
+                { homeTeamId: 2, awayTeamId: 9, timeSlotId: 4, pitchId: 1 },
+            ];
+            const result = validateSchedule(outsider, slots, { teamIds });
+            assert.equal(result.isValid, false);
+            assert.deepEqual(result.conflicts, [
+                "Match 2-9 is not a pair of the league's teams",
+                "Pair 2-3 is not scheduled",
+            ]);
+        });
+
+        it("is skipped without teamIds (e.g. two leagues checked together)", () => {
+            assert.equal(validateSchedule(complete.slice(0, 2), slots).isValid, true);
+        });
+    });
+
+    it("accepts every schedule generateSchedule returns, with both new checks on", () => {
+        const teamIds = [1, 2, 3, 4, 5, 6];
+        const timeSlots = buildSlots({ "17:00": 3 }, [
+            "2026-03-02",
+            "2026-03-09",
+            "2026-03-16",
+            "2026-03-23",
+            "2026-03-30",
+        ]);
+        const result = generateSchedule({
+            teamIds,
+            timeSlots,
+            teamPreferences: new Map(),
+            maxMatchesPerTeamPerWeek: 1,
+        });
+        assert.equal(result.success, true);
+        assert.deepEqual(
+            validateSchedule(result.schedule, timeSlots, {
+                teamIds,
+                maxMatchesPerTeamPerWeek: 1,
+            }),
+            { isValid: true, conflicts: [] },
+        );
     });
 });

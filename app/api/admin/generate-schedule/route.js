@@ -271,6 +271,10 @@ export async function POST(request) {
                 const validation = validateSchedule(
                     result.schedule,
                     currentFreeSlots,
+                    {
+                        teamIds,
+                        maxMatchesPerTeamPerWeek: MAX_MATCHES_PER_TEAM_PER_WEEK,
+                    },
                 );
                 if (!validation.isValid) {
                     throw {
