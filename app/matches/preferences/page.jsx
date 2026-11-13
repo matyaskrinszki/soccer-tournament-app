@@ -309,10 +309,10 @@ export default function PreferencesPage() {
       <div className="preferences-page">
         <div className="preferences-container">
           <div className="preferences-header">
-            <h1>Mérkőzésidőpont Preferenciák</h1>
+            <h1>Mérkőzésidőpont-preferenciák</h1>
           </div>
           <div className="preferences-card error">
-            <p>Nem vagy csapatvezető. Hogy állítsd be az időpont-preferenciákat, légy csapatvezető.</p>
+            <p>Nem vagy csapatkapitány. Az időpont-preferenciákat a csapatkapitány adhatja meg.</p>
           </div>
         </div>
       </div>
@@ -324,7 +324,7 @@ export default function PreferencesPage() {
       <div className="preferences-page">
         <div className="preferences-container">
           <div className="preferences-header">
-            <h1>Mérkőzésidőpont Preferenciák</h1>
+            <h1>Mérkőzésidőpont-preferenciák</h1>
           </div>
           <div className="preferences-card">
             <p>
@@ -341,7 +341,7 @@ export default function PreferencesPage() {
     <div className="preferences-page">
       <div className="preferences-container">
         <div className="preferences-header">
-          <h1>Mérkőzésidőpont Preferenciák</h1>
+          <h1>Mérkőzésidőpont-preferenciák</h1>
           <p className="preferences-subtitle">
             Egy heti mintát adsz meg, amit a rendszer a szezon minden hetére alkalmaz.
           </p>
@@ -448,11 +448,11 @@ export default function PreferencesPage() {
                                     disabled={!isAvailable}
                                     title={
                                       !isAvailable
-                                        ? 'Nincs elérhető idopont ezen a napon/idoben'
+                                        ? 'Nincs elérhető időpont ezen a napon/időben'
                                         : value === 'preferred'
-                                          ? 'Kedvelt idopont'
+                                          ? 'Kedvelt időpont'
                                           : value === 'unavailable'
-                                            ? 'Kerulendo idopont'
+                                            ? 'Kerülendő időpont'
                                             : 'Nincs preferencia'
                                     }
                                   >
@@ -479,7 +479,7 @@ export default function PreferencesPage() {
                     unavailableCount > MAX_UNAVAILABLE
                   }
                 >
-                  {saving ? 'Mentés...' : 'Preferenciák Mentése'}
+                  {saving ? 'Mentés...' : 'Preferenciák mentése'}
                 </button>
               </div>
             </>

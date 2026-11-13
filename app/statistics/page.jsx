@@ -44,7 +44,7 @@ export default function StatisticsPage() {
                 <header className="statistics-header">
                     <div>
                         <p className="eyebrow">Elemzés</p>
-                        <h1>Bajnokság Statisztikák</h1>
+                        <h1>Bajnoksági statisztikák</h1>
                         <p className="subhead">Részletes statisztikák és elemzések az összes ligáról és játékosról.</p>
                     </div>
                 </header>
@@ -80,7 +80,7 @@ export default function StatisticsPage() {
                         {/* Match Statistics */}
                         {stats.matchStats && (
                             <section className="stats-card">
-                                <h2>Mérkőzés Statisztikák</h2>
+                                <h2>Mérkőzés statisztikák</h2>
                                 <div className="stats-grid">
                                     <div className="stat-box">
                                         <p className="stat-label">Összes mérkőzés</p>
@@ -109,7 +109,7 @@ export default function StatisticsPage() {
                         {/* Top Scorers */}
                         {stats.topScorers && stats.topScorers.length > 0 && (
                             <section className="stats-card">
-                                <h2>Top 10 Góllövő</h2>
+                                <h2>Top 10 góllövő</h2>
                                 <div className="table-wrapper">
                                     <table className="stats-table">
                                         <thead>
@@ -140,7 +140,7 @@ export default function StatisticsPage() {
                         {/* Top Scorers by League */}
                         {stats.scorersByLeague && stats.scorersByLeague.length > 0 && (
                             <section className="stats-card">
-                                <h2>Góllövőlista Liga Szerint</h2>
+                                <h2>Góllövőlista liga szerint</h2>
                                 <div className="league-scorers">
                                     {(() => {
                                         const groupedByLeague = {};
@@ -187,7 +187,7 @@ export default function StatisticsPage() {
                         {/* Highest Scoring Matches */}
                         {stats.highestScoringMatches && stats.highestScoringMatches.length > 0 && (
                             <section className="stats-card">
-                                <h2>Legtöbb Gólos Mérkőzések</h2>
+                                <h2>Legtöbb gólos mérkőzések</h2>
                                 <div className="matches-list">
                                     {stats.highestScoringMatches.map((match) => (
                                         <Link
@@ -213,7 +213,7 @@ export default function StatisticsPage() {
                         {/* Top Teams */}
                         {stats.topTeams && stats.topTeams.length > 0 && (
                             <section className="stats-card">
-                                <h2>Top Csapatok</h2>
+                                <h2>Top csapatok</h2>
                                 <div className="table-wrapper">
                                     <table className="stats-table">
                                         <thead>
@@ -254,7 +254,7 @@ export default function StatisticsPage() {
                         {/* Most Defensive Teams */}
                         {stats.defensiveTeams && stats.defensiveTeams.length > 0 && (
                             <section className="stats-card">
-                                <h2>Legjobb Védekezés (Legkevesebb Kapott Gól)</h2>
+                                <h2>Legjobb védekezés (legkevesebb kapott gól)</h2>
                                 <div className="table-wrapper">
                                     <table className="stats-table">
                                         <thead>
@@ -263,8 +263,8 @@ export default function StatisticsPage() {
                                                 <th>Csapat</th>
                                                 <th>Liga</th>
                                                 <th>Mérkőzés</th>
-                                                <th>Kapott Gólok</th>
-                                                <th>Avg Kapott</th>
+                                                <th>Kapott gólok</th>
+                                                <th>Átl. kapott gól</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -291,15 +291,14 @@ export default function StatisticsPage() {
                         {/* League Statistics */}
                         {stats.leagueStats && stats.leagueStats.length > 0 && (
                             <section className="stats-card">
-                                <h2>Liga Statisztikák</h2>
+                                <h2>Liga statisztikák</h2>
                                 <div className="table-wrapper">
                                     <table className="stats-table">
                                         <thead>
                                             <tr>
                                                 <th>Liga</th>
-                                                <th>Ország</th>
                                                 <th>Csapatok</th>
-                                                <th>Összes Mérkőzés</th>
+                                                <th>Összes mérkőzés</th>
                                                 <th>Befejezett</th>
                                             </tr>
                                         </thead>
@@ -307,7 +306,6 @@ export default function StatisticsPage() {
                                             {stats.leagueStats.map((league) => (
                                                 <tr key={league.id}>
                                                     <td className="league-name">{league.name}</td>
-                                                    <td>{league.country}</td>
                                                     <td>{league.teamCount}</td>
                                                     <td>{league.totalMatches}</td>
                                                     <td>{league.finishedMatches}</td>

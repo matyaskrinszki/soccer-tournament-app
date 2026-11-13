@@ -113,7 +113,7 @@ export default function Header() {
                         <Link href="/players">Játékosok</Link>
                         <Link href="/teams">Csapatok</Link>
                         <Link href="/statistics">Statisztikák</Link>
-                        {isLoggedIn && (
+                        {isLoggedIn && captainTeamId && (
                             <Link href="/matches/preferences">Preferenciák</Link>
                         )}
                         {isLoggedIn && captainTeamId && (

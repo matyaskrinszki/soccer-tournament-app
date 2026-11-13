@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import './player.css';
+import BackLink from '../../components/BackLink';
 import PlayerStats from '../PlayerStats';
 import PlayerBadges from '../PlayerBadges';
 
@@ -40,7 +41,7 @@ export default function PlayerPage() {
         <div className="player-page">
             <main className="player-container">
                 <div className="player-breadcrumb">
-                    <Link href="/tabella">Vissza a táblához</Link>
+                    <BackLink fallbackHref="/tabella" />
                     {player && player.team && (
                         <span className="crumb">{player.team.leagueName}</span>
                     )}

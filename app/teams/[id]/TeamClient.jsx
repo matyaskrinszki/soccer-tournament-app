@@ -8,6 +8,7 @@ import { useAuth } from '../../components/AuthContext';
 import { SampleBadge } from '../../components/SeasonPicker';
 import SeasonRegistration from './SeasonRegistration';
 import CalendarExport from '../../components/CalendarExport';
+import BackLink from '../../components/BackLink';
 
 export default function TeamClient({ id }) {
     const [team, setTeam] = useState(null);
@@ -172,10 +173,10 @@ export default function TeamClient({ id }) {
         <div className="team-page">
             <main className="team-container">
                 <div className="team-breadcrumb">
-                    <Link href="/tabella">Vissza a táblához</Link>
+                    <BackLink fallbackHref="/tabella" />
                     {team && (
                         <span className="crumb">
-                            {team.league.country} • {team.league.name}
+                            {team.league.name}
                         </span>
                     )}
                 </div>
@@ -197,7 +198,6 @@ export default function TeamClient({ id }) {
                         <section className="team-card">
                             <div className="team-header">
                                 <div>
-                                    <p className="eyebrow">{team.league.country}</p>
                                     <h1>{team.name}</h1>
                                     <p className="subhead">{team.league.name}</p>
                                 </div>

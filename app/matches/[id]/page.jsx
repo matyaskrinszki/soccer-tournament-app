@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '../../components/AuthContext';
+import BackLink from '../../components/BackLink';
 import ReportPanel from './ReportPanel';
 import './match.css';
 
@@ -59,9 +60,9 @@ export default function MatchPage() {
         <div className="match-page">
             <main className="match-container">
                 <div className="match-breadcrumb">
-                    <Link href="/tabella">Vissza a táblához</Link>
+                    <BackLink fallbackHref="/tabella" />
                     {match && (
-                        <span className="crumb">{match.leagueCountry} • {match.leagueName}</span>
+                        <span className="crumb">{match.leagueName}</span>
                     )}
                 </div>
 
@@ -111,7 +112,6 @@ export default function MatchPage() {
 
                             <div className="meta-row">
                                 <span>{match.leagueName}</span>
-                                <span>{match.leagueCountry}</span>
                                 <span>ID: {match.id}</span>
                             </div>
 
