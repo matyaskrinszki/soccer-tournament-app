@@ -59,7 +59,7 @@ export default function StatisticsPage() {
 
                 {stats && !stats.season && !loading && !error && (
                     <div className="stats-card">
-                        <p>Még nincs publikált menetrend, ezért statisztika sincs.</p>
+                        <p>Még nincs publikált sorsolás, ezért statisztika sincs.</p>
                     </div>
                 )}
 

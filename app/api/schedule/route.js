@@ -40,7 +40,7 @@ export async function GET(request) {
             if (!season) {
                 return jsonError(
                     404,
-                    "A szezon nem található, vagy a menetrendje még nem nyilvános",
+                    "A szezon nem található, vagy a sorsolása még nem nyilvános",
                 );
             }
         }
@@ -92,6 +92,6 @@ export async function GET(request) {
         return NextResponse.json({ seasons, season, leagues });
     } catch (err) {
         console.error("Schedule query failed:", err);
-        return jsonError(500, "Hiba történt a menetrend lekérdezésekor");
+        return jsonError(500, "Hiba történt a sorsolás lekérdezésekor");
     }
 }

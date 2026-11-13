@@ -56,7 +56,7 @@ function SchedulePageContent() {
                 const res = await fetch(`/api/schedule${query}`);
                 const json = await res.json();
                 if (!res.ok) {
-                    throw new Error(json.error || 'Hiba történt a menetrend betöltésekor');
+                    throw new Error(json.error || 'Hiba történt a sorsolás betöltésekor');
                 }
                 if (!cancelled) {
                     setData(json);
@@ -114,17 +114,17 @@ function SchedulePageContent() {
         <div className="schedule-page">
             <div className="schedule-app">
                 <header className="schedule-header">
-                    <p className="eyebrow">Menetrend</p>
+                    <p className="eyebrow">Sorsolás</p>
                     <h1>Mérkőzések időpontjai</h1>
-                    <p className="subhead">A szezon generált menetrendje dátum szerint.</p>
+                    <p className="subhead">A szezon generált sorsolása dátum szerint.</p>
                 </header>
 
                 {loading ? (
-                    <p className="schedule-message">Menetrend betöltése...</p>
+                    <p className="schedule-message">Sorsolás betöltése...</p>
                 ) : error ? (
                     <p className="schedule-message schedule-error">{error}</p>
                 ) : !season ? (
-                    <p className="schedule-message">Még nincs nyilvános menetrend.</p>
+                    <p className="schedule-message">Még nincs nyilvános sorsolás.</p>
                 ) : (
                     <>
                         <div className="schedule-controls">
@@ -159,12 +159,12 @@ function SchedulePageContent() {
 
                         {season.status === 'generated' && (
                             <p className="schedule-note">
-                                Ez a menetrend még tervezet, az időpontok változhatnak.
+                                Ez a sorsolás még tervezet, az időpontok változhatnak.
                             </p>
                         )}
 
                         {leagues.length === 0 ? (
-                            <p className="schedule-message">Ehhez a szezonhoz még nem készült menetrend.</p>
+                            <p className="schedule-message">Ehhez a szezonhoz még nem készült sorsolás.</p>
                         ) : (
                             <>
                                 <div className="league-scores">

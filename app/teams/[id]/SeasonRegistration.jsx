@@ -6,7 +6,7 @@ import { getAuthHeaders } from '../../../lib/client-auth';
 const STATUS_TEXT = {
     setup: 'nevezés nyitva',
     'team-preferences': 'preferenciák megadása',
-    generated: 'menetrend készül',
+    generated: 'sorsolás készül',
     active: 'folyamatban',
     completed: 'lezárult',
 };

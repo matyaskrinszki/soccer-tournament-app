@@ -109,7 +109,7 @@ export default function Header() {
                         }}
                     >
                         <Link href="/tabella">Tabella</Link>
-                        <Link href="/schedule">Menetrend</Link>
+                        <Link href="/schedule">Sorsolás</Link>
                         <Link href="/players">Játékosok</Link>
                         <Link href="/teams">Csapatok</Link>
                         <Link href="/statistics">Statisztikák</Link>

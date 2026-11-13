@@ -48,7 +48,7 @@ export async function POST(request) {
         if (PUBLISHED_STATUSES.includes(season.status)) {
             return jsonError(
                 400,
-                "A publikált szezon menetrendje nem generálható újra",
+                "A publikált szezon sorsolása nem generálható újra",
             );
         }
 

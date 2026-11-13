@@ -96,7 +96,7 @@ export default function Home() {
                                         </Link>
                                     ))
                                 )}
-                                <Link href="/schedule" className="section-link">Teljes menetrend →</Link>
+                                <Link href="/schedule" className="section-link">Teljes sorsolás →</Link>
                             </section>
                         </div>
 
@@ -109,7 +109,7 @@ export default function Home() {
                                 </p>
                             )}
                             {home.standings.length === 0 ? (
-                                <p className="empty">Még nincs publikált menetrend.</p>
+                                <p className="empty">Még nincs publikált sorsolás.</p>
                             ) : (
                                 <div className="standings-grid">
                                     {home.standings.map((league) => (

@@ -63,7 +63,7 @@ export default function ScheduleTab({ season, onSeasonUpdated, notify }) {
 
     const handlePublishSchedule = async () => {
         const confirmed = window.confirm(
-            'A publikálás után a menetrend nem generálható újra, és a szezon aktív lesz. Folytatod?',
+            'A publikálás után a sorsolás nem generálható újra, és a szezon aktív lesz. Folytatod?',
         );
         if (!confirmed) return;
 
@@ -73,12 +73,12 @@ export default function ScheduleTab({ season, onSeasonUpdated, notify }) {
             const data = await adminFetch('/api/admin/publish-schedule', {
                 method: 'POST',
                 body: { seasonId: season.id },
-                errorMessage: 'Hiba a menetrend publikálásakor',
+                errorMessage: 'Hiba a sorsolás publikálásakor',
             });
 
             onSeasonUpdated(season.id, { status: 'active' });
             notify.success(
-                `Menetrend publikálva: ${data.leagueCount} liga, ${data.publishedMatchCount} mérkőzés.`,
+                `Sorsolás publikálva: ${data.leagueCount} liga, ${data.publishedMatchCount} mérkőzés.`,
             );
         } catch (err) {
             notify.error(err.message);
@@ -110,19 +110,19 @@ export default function ScheduleTab({ season, onSeasonUpdated, notify }) {
             {hasCurrentSchedule && (
                 <div className="schedule-info">
                     {isSeasonPublished ? (
-                        <p>A menetrend publikálva van, a mérkőzések bekerültek a rendszerbe.</p>
+                        <p>A sorsolás publikálva van, a mérkőzések bekerültek a rendszerbe.</p>
                     ) : (
                         <>
                             <p>
                                 A publikálás a jelenlegi ütemezést valódi mérkőzésekké alakítja,
-                                és a szezon aktív lesz. Utána a menetrend nem generálható újra.
+                                és a szezon aktív lesz. Utána a sorsolás nem generálható újra.
                             </p>
                             <button
                                 onClick={handlePublishSchedule}
                                 className="btn-primary"
                                 disabled={publishing || season.status !== 'generated'}
                             >
-                                {publishing ? 'Publikálás folyamatban...' : 'Menetrend publikálása'}
+                                {publishing ? 'Publikálás folyamatban...' : 'Sorsolás publikálása'}
                             </button>
                         </>
                     )}
@@ -133,10 +133,10 @@ export default function ScheduleTab({ season, onSeasonUpdated, notify }) {
                 <div className="schedule-info">
                     {PUBLIC_STATUSES.includes(season.status) ? (
                         <Link href={`/schedule?seasonId=${season.id}`} className="btn-primary">
-                            Menetrend megtekintése
+                            Sorsolás megtekintése
                         </Link>
                     ) : (
-                        <p>A menetrend az első sikeres generálás után lesz nyilvános.</p>
+                        <p>A sorsolás az első sikeres generálás után lesz nyilvános.</p>
                     )}
                 </div>
             )}

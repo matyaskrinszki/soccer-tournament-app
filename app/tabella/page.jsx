@@ -77,7 +77,7 @@ export default function StandingsPage() {
                     </div>
                 ) : leagues.length === 0 ? (
                     <div className="loading-message">
-                        <p>Még nincs publikált menetrend, ezért tabella sincs.</p>
+                        <p>Még nincs publikált sorsolás, ezért tabella sincs.</p>
                     </div>
                 ) : (
                     <div className="league-selector-container">

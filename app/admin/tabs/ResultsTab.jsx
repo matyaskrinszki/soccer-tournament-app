@@ -82,7 +82,7 @@ export default function ResultsTab({ season, notify }) {
 
             {matches.length === 0 ? (
                 <p>
-                    Ehhez a szezonhoz még nincsenek mérkőzések. Az eredmények a menetrend
+                    Ehhez a szezonhoz még nincsenek mérkőzések. Az eredmények a sorsolás
                     publikálása után rögzíthetők (Ütemezés fül).
                 </p>
             ) : (
